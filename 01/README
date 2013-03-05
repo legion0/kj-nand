@@ -1,0 +1,32 @@
+legion, yotamk
+===============================================================================
+Jonathan Kibarski, ID 303756175, phenixdoc@gmail.com
+Yotam Katznelson, ID 038196903, yotam.katznelson@mail.huji.ac.il
+===============================================================================
+
+                           Project 1 - Logic Gates
+                           ----------------------- 
+  
+
+Submitted Files
+---------------
+README - This file.
+And.hdl
+And16.hdl
+DMux.hdl
+DMux4Way.hdl
+DMux8Way.hdl
+Mux.hdl
+Mux16.hdl
+Mux4Way16.hdl
+Mux8Way16.hdl
+Not.hdl
+Not16.hdl
+Or.hdl
+Or16.hdl
+Or8Way.hdl
+Xor.hdl
+
+Remarks
+-------
+* None

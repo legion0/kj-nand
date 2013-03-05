@@ -1,0 +1,30 @@
+legion, yotamk
+===============================================================================
+Jonathan Kibarski, ID 303756175, phenixdoc@gmail.com
+Yotam Katznelson, ID 038196903, yotam.katznelson@mail.huji.ac.il
+===============================================================================
+
+                           Project 3 - Sequential Chips
+                           ----------------------- 
+  
+
+Submitted Files
+---------------
+
+README - This file.
+
+./a:
+Bit.hdl
+PC.hdl
+RAM64.hdl
+RAM8.hdl
+Register.hdl
+
+./b:
+RAM16K.hdl
+RAM4K.hdl
+RAM512.hdl
+
+Remarks
+-------
+* None

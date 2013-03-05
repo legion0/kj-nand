@@ -1,0 +1,30 @@
+CHIP JumpCalc {
+	IN j0, j1, j2, no, zo;
+	OUT out;
+	
+	PARTS:
+		Or(a = no, b = zo, out = le);
+		Not(in = le, out = gt);
+		Not(in = no, out = ge);
+		Not(in = zo, out = nzo);
+		
+		And(a = j0, b = j1, out = t00);
+		And(a = t00, b = j2, out = t0);
+				
+		And(a = j0, b = gt, out = t1);
+		And(a = j1, b = zo, out = t2);
+		And(a = j0, b = j1, out = t30);
+		And(a = t30, b = ge, out = t3);
+		And(a = j2, b = no, out = t4);
+		And(a = j0, b = j2, out = t50);
+		And(a = t50, b = nzo, out = t5);
+		And(a = j1, b = j2, out = t60);
+		And(a = t60, b = le, out = t6);
+		
+		Or(a = t0, b = t1, out = or1);
+		Or(a = t2, b = t3, out = or2);
+		Or(a = t4, b = t5, out = or3);
+		Or(a = t6, b = or1, out = or10);
+		Or(a = or2, b = or3, out = or11);
+		Or(a = or10, b = or11, out = out);
+}

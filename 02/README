@@ -1,0 +1,25 @@
+legion, yotamk
+===============================================================================
+Jonathan Kibarski, ID 303756175, phenixdoc@gmail.com
+Yotam Katznelson, ID 038196903, yotam.katznelson@mail.huji.ac.il
+===============================================================================
+
+                           Project 2 - Combinational Chips
+                           ----------------------- 
+  
+
+Submitted Files
+---------------
+README - This file.
+Add16.hdl
+ALU.hdl
+FullAdder.hdl
+HalfAdder.hdl
+Inc16.hdl
+MSB16.hdl
+Or16Way.hdl
+
+
+Remarks
+-------
+* None

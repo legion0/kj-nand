@@ -1,0 +1,22 @@
+legion, yotamk
+===============================================================================
+Jonathan Kibarski, ID 303756175, phenixdoc@gmail.com
+Yotam Katznelson, ID 038196903, yotam.katznelson@mail.huji.ac.il
+===============================================================================
+
+                           Project 5 - Computer Architecture
+                           ----------------------- 
+  
+
+Submitted Files
+---------------
+README - This file.
+
+Computer.hdl
+CPU.hdl
+JumpCalc.hdl
+Memory.hdl
+
+Remarks
+-------
+* None
