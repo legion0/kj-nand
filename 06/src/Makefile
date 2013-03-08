@@ -11,4 +11,4 @@ clean:
 	rm -f Assembler
 
 tar:
-	tar -cvf project6.tar Makefile Assembler.py instructions/*
+	tar -cvf project6.tar Makefile README Assembler.py instructions/*
