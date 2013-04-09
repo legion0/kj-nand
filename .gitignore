@@ -1,7 +1,1 @@
-*.tst
-*.cmp
-*.out
-*.tar
-*.sh
-*.zip
-*.hack
+/nand2tetris/
