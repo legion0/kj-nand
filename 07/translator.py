@@ -1,33 +1,53 @@
 #! /usr/bin/env python
 _DEBUG = False
 
-from commands.push import PushCommand
-from commands.arithmetic import ArithmeticCommand
-from commands.pop import PopCommand
 import commands as Factory
-
-import sys, os, re
+import sys, os
+import re
+import glob
+modules = glob.glob(os.path.join(os.path.dirname(__file__), "commands", "*.py"))
+modules = [os.path.basename(x)[:-3] for x in modules]
+modules = [x for x in modules if x != "__init__"]
+__import__("commands", globals(), locals(), modules)
 
 USAGE_MSG = """USAGE: %s <.asm file>""" % os.path.basename(__file__)
+
+# TODO: directory asm insode directory ?
+# TDOD: directory asm name ?
+# TODO: executable name is translator ?
 
 def main(argv):
     if len(argv) < 1:
         print >> sys.stderr, USAGE_MSG
         exit(-1)
     filePath = argv[0]
-    baseName = os.path.splitext(os.path.basename(filePath))[0]
-    outFilePath = os.path.join(os.path.split(filePath)[0], "%s.asm" % baseName)
     try:
-        with open(filePath, "r") as f:
-            lines = f.readlines()
-        lines = cleanLines(lines)
-        commands = compile_(lines, baseName)
-        assembly = toAssembly(commands)
-        assembly = '\n'.join(assembly)
-        
-#         outFilePath = os.path.splitext(filePath)[0] + ".asm"
-        with open(outFilePath, "w") as f:
-            f.write(assembly)
+        if os.path.isdir(filePath):
+            baseName = os.path.basename(filePath)
+            outFilePath = os.path.join(os.path.dirname(filePath), "%s.asm" % baseName)
+            dirPath = filePath
+            commands = []
+            for name in os.listdir(dirPath):
+                filePath = os.path.join(dirPath, name)
+                with open(filePath, "r") as f:
+                    lines = f.readlines()
+                lines = cleanLines(lines)
+                commands.append(compile_(lines, baseName))
+            assembly = toAssembly(commands)
+            assembly = '\n'.join(assembly)
+            with open(outFilePath, "w") as f:
+                f.write(assembly)
+        else:
+            baseName = os.path.splitext(os.path.basename(filePath))[0]
+            outFilePath = os.path.join(os.path.split(filePath)[0], "%s.asm" % baseName)
+            with open(filePath, "r") as f:
+                lines = f.readlines()
+            lines = cleanLines(lines)
+            commands = compile_(lines, baseName)
+            assembly = toAssembly(commands)
+            assembly = '\n'.join(assembly)
+            with open(outFilePath, "w") as f:
+                f.write(assembly)
     except SyntaxError as ex:
         ex.filename = filePath
         die(ex)
@@ -69,7 +89,6 @@ def toAssembly(commands):
     return assembly
 
 def die(ex):
-#    print >> sys.stderr, "ERROR: %s (%d)" % (ex.strerror, ex.errno)
     if isinstance(ex, SyntaxError):
         print >> sys.stderr, "ERROR: %s at line: %d, %s." % (ex.msg, ex.lineno, ex.text)
     elif isinstance(ex, IOError):
@@ -82,9 +101,9 @@ def die(ex):
     exit(-3)
     
 if __name__ == '__main__':
-#     main(sys.argv[1:])
-    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\StackArithmetic\SimpleAdd\SimpleAdd.vm"])
-    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\StackArithmetic\StackTest\StackTest.vm"])
-    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\BasicTest\BasicTest.vm"])
-    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\PointerTest\PointerTest.vm"])
-    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\StaticTest\StaticTest.vm"])
+    main(sys.argv[1:])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\StackArithmetic\SimpleAdd\SimpleAdd.vm"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\StackArithmetic\StackTest\StackTest.vm"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\BasicTest\BasicTest.vm"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\PointerTest\PointerTest.vm"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\StaticTest\StaticTest.vm"])
