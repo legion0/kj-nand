@@ -1,1 +1,4 @@
 /nand2tetris/
+/.metadata/
+.project
+.pydevproject
