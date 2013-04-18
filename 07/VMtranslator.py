@@ -12,10 +12,6 @@ __import__("commands", globals(), locals(), modules)
 
 USAGE_MSG = """USAGE: %s <.asm file>""" % os.path.basename(__file__)
 
-# TODO: directory asm insode directory ?
-# TDOD: directory asm name ?
-# TODO: executable name is translator ?
-
 def main(argv):
     if len(argv) < 1:
         print >> sys.stderr, USAGE_MSG
@@ -23,9 +19,9 @@ def main(argv):
     filePath = argv[0]
     try:
         if os.path.isdir(filePath):
-            baseName = os.path.basename(filePath)
-            outFilePath = os.path.join(os.path.dirname(filePath), "%s.asm" % baseName)
             dirPath = filePath
+            baseName = os.path.basename(dirPath)
+            outFilePath = os.path.join(dirPath, "%s.asm" % baseName)
             commands = []
             for name in os.listdir(dirPath):
                 filePath = os.path.join(dirPath, name)

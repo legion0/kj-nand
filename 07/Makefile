@@ -1,15 +1,16 @@
-SOURCES = translator.py
-TARGETS = translator project7.tar
+EX=7
+SOURCES = VMtranslator.py commands/*
+TARGETS = VMtranslator
 
 all: $(TARGETS)
 
-translator: translator.py
+VMtranslator: VMtranslator.py
 	cp -f $< $@
 	chmod +x $@
 
 clean:
 	rm -f $(TARGETS)
 
-tar: project7.tar
-project7.tar: $(SOURCES) Makefile README
-	tar -cvf $@ $^ 
+tar:
+	tar -cvf project$(EX).tar $(SOURCES) Makefile README
+
