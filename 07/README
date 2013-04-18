@@ -4,23 +4,22 @@ Jonathan Kibarski, ID 303756175, phenixdoc@gmail.com
 Yotam Katznelson, ID 038196903, yotam.katznelson@mail.huji.ac.il
 ===============================================================================
 
-                           Project 6 - The Assembler
+                           Project 7 - The VM: Stack Arithmetic
                            ----------------------- 
   
 
 Submitted Files
 ---------------
 README - This file.
-
-Assembler.py
 Makefile
 
-./instructions:
-__init__.py
-A.py
-C.py
-Factory.py
+VMtranslator.py
+commands/__init__.py
+commands/arithmetic.py
+commands/pop.py
+commands/push.py
 
 Remarks
 -------
 * None
+
