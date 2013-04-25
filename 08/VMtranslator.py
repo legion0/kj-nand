@@ -1,16 +1,33 @@
 #! /usr/bin/env python
-_DEBUG = False
+_DEBUG = True
 
 import commands as Factory
 import sys, os
 import re
 import glob
-modules = glob.glob(os.path.join(os.path.dirname(__file__), "commands", "*.py"))
-modules = [os.path.basename(x)[:-3] for x in modules]
-modules = [x for x in modules if x != "__init__"]
-__import__("commands", globals(), locals(), modules)
+
+SCRIPT_DIR = os.path.dirname(__file__)
+
+def importCommands(path):
+    modules = glob.glob(os.path.join(SCRIPT_DIR, path, "*.py"))
+    modules = [os.path.basename(x)[:-3] for x in modules]
+    modules = [x for x in modules if x != "__init__"]
+    __import__(path.replace(os.sep, "."), globals(), locals(), modules)
+
+importCommands("commands")
+for name in os.listdir(os.path.join(SCRIPT_DIR, "commands")):
+    if os.path.isfile(os.path.join(SCRIPT_DIR, "commands", name, "__init__.py")):
+        importCommands(os.path.join("commands", name))
 
 USAGE_MSG = """USAGE: %s <.asm file>""" % os.path.basename(__file__)
+
+BOOTSTRAP_CODE = """@256
+D=A
+@SP
+M=D
+@Sys.init
+0; JMP
+"""
 
 def main(argv):
     if len(argv) < 1:
@@ -35,6 +52,7 @@ def main(argv):
                 commands.extend(compile_(lines, baseName))
             assembly = toAssembly(commands)
             assembly = '\n'.join(assembly)
+            assembly = BOOTSTRAP_CODE + assembly
             with open(outFilePath, "w") as f:
                 f.write(assembly)
         else:
@@ -46,6 +64,7 @@ def main(argv):
             commands = compile_(lines, baseName)
             assembly = toAssembly(commands)
             assembly = '\n'.join(assembly)
+            assembly = BOOTSTRAP_CODE + assembly
             with open(outFilePath, "w") as f:
                 f.write(assembly)
     except SyntaxError as ex:
@@ -53,8 +72,8 @@ def main(argv):
         die(ex)
     except IOError as ex:
         die(ex)
-    except Exception as ex:
-        die(ex)
+#     except Exception as ex:
+#         die(ex)
 
 def cleanLines(lines):
     newLines = []
@@ -101,9 +120,9 @@ def die(ex):
     exit(-3)
     
 if __name__ == '__main__':
-    main(sys.argv[1:])
-#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\StackArithmetic\SimpleAdd\SimpleAdd.vm"])
-#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\StackArithmetic\StackTest\StackTest.vm"])
-#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\BasicTest\BasicTest.vm"])
-#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\PointerTest\PointerTest.vm"])
-#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\07\MemoryAccess\StaticTest\StaticTest.vm"])
+#     main(sys.argv[1:])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\ProgramFlow\BasicLoop\BasicLoop.vm"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\ProgramFlow\FibonacciSeries\FibonacciSeries.vm"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\FibonacciElement"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\SimpleFunction\SimpleFunction.vm"])
+    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\StaticsTest"])
