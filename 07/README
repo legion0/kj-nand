@@ -12,12 +12,15 @@ Submitted Files
 ---------------
 README - This file.
 Makefile
-
 VMtranslator.py
+
 commands/__init__.py
 commands/arithmetic.py
 commands/pop.py
 commands/push.py
+
+tools/__init__.py
+tools/mycollections.py
 
 Remarks
 -------

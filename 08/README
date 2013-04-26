@@ -12,8 +12,23 @@ Submitted Files
 ---------------
 README - This file.
 Makefile
+VMtranslator.py
 
-TODO: enter file list here
+commands/__init__.py
+commands/arithmetic.py
+commands/pop.py
+commands/push.py
+commands/flow/__init__.py
+commands/flow/goto.py
+commands/flow/if_goto.py
+commands/flow/label.py
+commands/functions/__init__.py
+commands/functions/functionCall.py
+commands/functions/functionDeclare.py
+commands/functions/functionReturn.py
+
+tools/__init__.py
+tools/mycollections.py
 
 Remarks
 -------
