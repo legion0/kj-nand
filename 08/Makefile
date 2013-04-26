@@ -1,5 +1,5 @@
 EX=8
-SOURCES = VMtranslator.py commands/*
+SOURCES = VMtranslator.py commands/*.py commands/*/*.py tools/*.py
 TARGETS = VMtranslator
 
 all: $(TARGETS)
