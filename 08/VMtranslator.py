@@ -21,11 +21,20 @@ for name in os.listdir(os.path.join(SCRIPT_DIR, "commands")):
 
 USAGE_MSG = """USAGE: %s <.asm file>""" % os.path.basename(__file__)
 
+_PUSH_STR = """@0
+D=A
+@SP
+A=M
+M=D
+@SP
+M=M+1
+"""
+
 BOOTSTRAP_CODE = """@256
 D=A
 @SP
 M=D
-@Sys.init
+""" + (_PUSH_STR * 5) + """@Sys.init
 0; JMP
 """
 
@@ -39,13 +48,14 @@ def main(argv):
             dirPath = filePath
             if dirPath.endswith(os.sep):
                 dirPath = dirPath[:-len(os.sep)]
-            baseName = os.path.basename(dirPath)
-            outFilePath = os.path.join(dirPath, "%s.asm" % baseName)
+            dirName = os.path.basename(dirPath)
+            outFilePath = os.path.join(dirPath, "%s.asm" % dirName)
             commands = []
-            for name in os.listdir(dirPath):
-                if os.path.splitext(name)[1].lower() != ".vm":
+            for fileName in os.listdir(dirPath):
+                baseName, fileExt = os.path.splitext(fileName)
+                if fileExt.lower() != ".vm":
                     continue
-                filePath = os.path.join(dirPath, name)
+                filePath = os.path.join(dirPath, fileName)
                 with open(filePath, "r") as f:
                     lines = f.readlines()
                 lines = cleanLines(lines)
@@ -56,8 +66,9 @@ def main(argv):
             with open(outFilePath, "w") as f:
                 f.write(assembly)
         else:
-            baseName = os.path.splitext(os.path.basename(filePath))[0]
-            outFilePath = os.path.join(os.path.split(filePath)[0], "%s.asm" % baseName)
+            dirPath, fileName = os.path.split(filePath)
+            baseName, _ = os.path.splitext(fileName)
+            outFilePath = os.path.join(dirPath, "%s.asm" % baseName)
             with open(filePath, "r") as f:
                 lines = f.readlines()
             lines = cleanLines(lines)
@@ -123,6 +134,6 @@ if __name__ == '__main__':
 #     main(sys.argv[1:])
 #     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\ProgramFlow\BasicLoop\BasicLoop.vm"])
 #     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\ProgramFlow\FibonacciSeries\FibonacciSeries.vm"])
-#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\FibonacciElement"])
 #     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\SimpleFunction\SimpleFunction.vm"])
+    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\FibonacciElement"])
     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\StaticsTest"])
