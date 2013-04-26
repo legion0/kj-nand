@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-_DEBUG = True
+_DEBUG = False
 
 import commands as Factory
 import sys, os
@@ -44,35 +44,31 @@ def main(argv):
         exit(-1)
     filePath = argv[0]
     try:
+        fileList = []
         if os.path.isdir(filePath):
             dirPath = filePath
             if dirPath.endswith(os.sep):
                 dirPath = dirPath[:-len(os.sep)]
             dirName = os.path.basename(dirPath)
             outFilePath = os.path.join(dirPath, "%s.asm" % dirName)
-            commands = []
             for fileName in os.listdir(dirPath):
                 baseName, fileExt = os.path.splitext(fileName)
                 if fileExt.lower() != ".vm":
                     continue
-                filePath = os.path.join(dirPath, fileName)
-                with open(filePath, "r") as f:
-                    lines = f.readlines()
-                lines = cleanLines(lines)
-                commands.extend(compile_(lines, baseName))
-            assembly = toAssembly(commands)
-            assembly = '\n'.join(assembly)
-            assembly = BOOTSTRAP_CODE + assembly
-            with open(outFilePath, "w") as f:
-                f.write(assembly)
+                fileList.append(fileName)
         else:
             dirPath, fileName = os.path.split(filePath)
             baseName, _ = os.path.splitext(fileName)
             outFilePath = os.path.join(dirPath, "%s.asm" % baseName)
+            fileList.append(fileName)
+        commands = []
+        for fileName in fileList:
+            baseName, _ = os.path.splitext(fileName)
+            filePath = os.path.join(dirPath, fileName)
             with open(filePath, "r") as f:
                 lines = f.readlines()
             lines = cleanLines(lines)
-            commands = compile_(lines, baseName)
+            commands.extend(compile_(lines, baseName))
             assembly = toAssembly(commands)
             assembly = '\n'.join(assembly)
             assembly = BOOTSTRAP_CODE + assembly
@@ -83,8 +79,8 @@ def main(argv):
         die(ex)
     except IOError as ex:
         die(ex)
-#     except Exception as ex:
-#         die(ex)
+    except Exception as ex:
+        die(ex)
 
 def cleanLines(lines):
     newLines = []
@@ -131,9 +127,9 @@ def die(ex):
     exit(-3)
     
 if __name__ == '__main__':
-#     main(sys.argv[1:])
+    main(sys.argv[1:])
 #     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\ProgramFlow\BasicLoop\BasicLoop.vm"])
 #     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\ProgramFlow\FibonacciSeries\FibonacciSeries.vm"])
 #     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\SimpleFunction\SimpleFunction.vm"])
-    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\FibonacciElement"])
-    main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\StaticsTest"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\FibonacciElement"])
+#     main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\08\FunctionCalls\StaticsTest"])

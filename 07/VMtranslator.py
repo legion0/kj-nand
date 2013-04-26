@@ -18,32 +18,31 @@ def main(argv):
         exit(-1)
     filePath = argv[0]
     try:
+        fileList = []
         if os.path.isdir(filePath):
             dirPath = filePath
             if dirPath.endswith(os.sep):
                 dirPath = dirPath[:-len(os.sep)]
-            baseName = os.path.basename(dirPath)
-            outFilePath = os.path.join(dirPath, "%s.asm" % baseName)
-            commands = []
-            for name in os.listdir(dirPath):
-                if os.path.splitext(name)[1].lower() != ".vm":
+            dirName = os.path.basename(dirPath)
+            outFilePath = os.path.join(dirPath, "%s.asm" % dirName)
+            for fileName in os.listdir(dirPath):
+                baseName, fileExt = os.path.splitext(fileName)
+                if fileExt.lower() != ".vm":
                     continue
-                filePath = os.path.join(dirPath, name)
-                with open(filePath, "r") as f:
-                    lines = f.readlines()
-                lines = cleanLines(lines)
-                commands.extend(compile_(lines, baseName))
-            assembly = toAssembly(commands)
-            assembly = '\n'.join(assembly)
-            with open(outFilePath, "w") as f:
-                f.write(assembly)
+                fileList.append(fileName)
         else:
-            baseName = os.path.splitext(os.path.basename(filePath))[0]
-            outFilePath = os.path.join(os.path.split(filePath)[0], "%s.asm" % baseName)
+            dirPath, fileName = os.path.split(filePath)
+            baseName, _ = os.path.splitext(fileName)
+            outFilePath = os.path.join(dirPath, "%s.asm" % baseName)
+            fileList.append(fileName)
+        commands = []
+        for fileName in fileList:
+            baseName, _ = os.path.splitext(fileName)
+            filePath = os.path.join(dirPath, fileName)
             with open(filePath, "r") as f:
                 lines = f.readlines()
             lines = cleanLines(lines)
-            commands = compile_(lines, baseName)
+            commands.extend(compile_(lines, baseName))
             assembly = toAssembly(commands)
             assembly = '\n'.join(assembly)
             with open(outFilePath, "w") as f:
