@@ -1,0 +1,59 @@
+/**
+ * The Square class implements a graphic square. A graphic square
+ * has a location on the screen and a size. It also has methods
+ * for drawing, erasing, moving on the screen.
+ */
+class Square {
+
+	// Location on the screen
+	field int x, y;
+	// Old location on the screen for redraw
+	field int old_x, old_y;
+	field boolean deleteOld;
+
+	// The size of the square
+	field int size;
+
+	/** Constructs a new square with a given location and size. */
+	constructor Square new(int Ax, int Ay, int Asize) {
+		let deleteOld = false;
+		let x = Ax;
+		let y = Ay;
+		let size = Asize;
+		do draw();
+		return this;
+	}
+
+	/** Deallocates the object's memory. */
+	method void dispose() {
+		do Memory.deAlloc(this);
+		return;
+	}
+
+	/** Draws the square on the screen. */
+	method void draw() {
+		if (deleteOld) {
+			do Screen.setColor(false);
+			do Screen.drawRectangle(old_x, old_y, old_x + size, old_y + size);
+		}
+		do Screen.setColor(true);
+		do Screen.drawRectangle(x, y, x + size, y + size);
+		return;
+	}
+
+	/** Erases the square from the screen. */
+	method void erase() {
+		do Screen.setColor(false);
+		do Screen.drawRectangle(x, y, x + size, y + size);
+		return;
+	}
+
+	method void setPos(int Ax, int Ay) {
+		let old_x = x;
+		let old_y = y;
+		let x = Ax;
+		let y = Ay;
+		let deleteOld = true;
+		return;
+	}
+}

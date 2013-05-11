@@ -1,0 +1,113 @@
+/**
+ * The GravityGame class implements the Gravity game.
+ * In this game you can move a black square around the screen affected by
+ * gravity.
+ * In the beginning, the square is located at a random location with random speed.
+ * Use the arrow keys to move the square.
+ * Use 'q' to quit.
+ */
+class GravityGame {
+
+	// The square
+	field Square square;
+
+	// The square's location
+	field int x;
+	field int y;
+
+	// The square's movement speed
+	field int sx;
+	field int sy;
+
+	// consts
+	field int GRAVITY;
+	field int FORCE;
+	field int SIZE;
+	field int MAX_SPEED; // max speed
+
+	static int SCREEN_WIDTH, SCREEN_HEIGHT;
+
+	/** Constructs a new Gravity Game. */
+	constructor GravityGame new() {
+		let SCREEN_WIDTH = 512;
+		let SCREEN_HEIGHT = 256;
+		let GRAVITY = 1;
+		let FORCE = 2;
+		let SIZE = 30;
+		let MAX_SPEED = 20;
+		let x = 30; // chosen by fair dice roll.
+		let y = 30; // guaranteed to be random.
+		let sx = 4;
+		let sy = 0;
+		let square = Square.new(x, y, SIZE);
+		return this;
+	}
+
+	/** Deallocates the object's memory. */
+	method void dispose() {
+		do square.dispose();
+		do Memory.deAlloc(this);
+		return;
+	}
+
+	/** Starts the game. Handles inputs from the user that controls
+	 *  the square movement speed and size. */
+	method void run() {
+		var char key;
+		var boolean exit;
+		let exit = false;
+		while (~exit) {
+			let key = Keyboard.keyPressed();
+			if (key = 81) { // q
+				let exit = true;
+			}
+			if (key = 131) { // up
+				let sy = sy - FORCE;
+			}
+			if (key = 133) { // down
+				let sy = sy + FORCE;
+			}
+			if (key = 130) { // left
+				let sx = sx - FORCE;
+			}
+			if (key = 132) { // right
+				let sx = sx + FORCE;
+			}
+			do moveSquare();
+			do Sys.wait(50);
+		}
+		return;
+	}
+
+	/** Moves the square in the current speed. */
+	method void moveSquare() {
+		let sy = sy + GRAVITY;
+		let sx = Math.min(sx, MAX_SPEED);
+		let sx = Math.max(sx, -MAX_SPEED);
+		let sy = Math.min(sy, MAX_SPEED);
+		let sy = Math.max(sy, -MAX_SPEED);
+		let x = x + sx;
+		let y = y + sy;
+		if (y > (SCREEN_HEIGHT - SIZE - 1)) {
+			let y = SCREEN_HEIGHT - SIZE - 1;
+			let sy = -(sy - 1);
+		} else {
+			if (y < 0) {
+				let y = 0;
+				let sy = -(sy + 1);
+			}
+		}
+		if (x > (SCREEN_WIDTH - SIZE - 1)) {
+			let x = SCREEN_WIDTH - SIZE - 1;
+			let sx = -(sx - 1);
+		} else {
+			if (x < 0) {
+				let x = 0;
+				let sx = -(sx + 1);
+			}
+		}
+		do square.setPos(x, y);
+		do square.draw();
+		return;
+	}
+}
