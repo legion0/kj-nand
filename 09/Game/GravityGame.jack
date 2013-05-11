@@ -2,8 +2,8 @@
  * The GravityGame class implements the Gravity game.
  * In this game you can move a black square around the screen affected by
  * gravity.
- * In the beginning, the square is located at a random location with random speed.
  * Use the arrow keys to move the square.
+ * This game has a physics mechanism to be discovered by playing around.
  * Use 'q' to quit.
  */
 class GravityGame {
