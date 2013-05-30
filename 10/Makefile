@@ -1,10 +1,10 @@
 EX=10
-SOURCES = JackCompiler.py compilation.py tokenizor.py
-TARGETS = JackCompiler
+SOURCES = JackAnalyzer.py compilation.py tokenizor.py
+TARGETS = JackAnalyzer
 
 all: $(TARGETS)
 
-JackCompiler: JackCompiler.py compilation.py tokenizor.py
+JackAnalyzer: JackAnalyzer.py compilation.py tokenizor.py
 	cp -f $< $@
 	chmod +x $@
 
