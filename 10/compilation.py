@@ -1,11 +1,8 @@
-from tokenizor import newTokenizor, getTypeName
-import tokenizor
-from xml.etree.ElementTree import Element, ElementTree
-import os, cgi
+from xml.etree.ElementTree import Element, tostring
 from xml.dom.minidom import parseString, Document
-from xml.etree.ElementTree import tostring
 
-import inspect
+import tokenizor
+from tokenizor import newTokenizor
 
 class _ELEMENTS:
 	CLASS = "class"
@@ -29,7 +26,6 @@ class _ELEMENTS:
 	STRING_CONSTANT = "stringConstant"
 	KEYWORD_CONSTANT = "keywordConstant"
 	TERM = "term"
-
 
 class _KEYWORDS:
 	VAR = "var"
@@ -70,7 +66,6 @@ class _STATEMENTS:
 	RETURN = "return"
 	TYPE_NAMES = (LET, IF, WHILE, DO, RETURN)
 
-
 def _leafElement(tag, text):
 	elem = Element(tag)
 	elem.text = "%s" % text
@@ -85,12 +80,7 @@ class CompilationEngine:
 
 	def compile(self):
 		root = self._compileClass()
-		for tok in self.iter:
-			self._printToken(tok)
-		return root
-# 			self.compileR(tok, classE)
-	def _printToken(self, tok):
-		print "[%-10s] %s" % (getTypeName(tok[0]), tok[1])
+		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
 
 	def _compileClass(self):
 		tok = self.iter.next()
@@ -103,12 +93,9 @@ class CompilationEngine:
 		self._readSymbol(classE, _SYMBOLS.BRACKET_CURLY_OPEN)
 		self._compileClassVarDec(classE)
 		self._compileSubroutine(classE)
- 		self._readSymbol(classE, _SYMBOLS.BRACKET_CURLY_CLOSE)
- 		tree = ElementTree(classE)
- 		parseString(tostring(classE)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
-# 		print parseString(tostring(classE))
-# 		tree.write(self.dst)		
-	
+		self._readSymbol(classE, _SYMBOLS.BRACKET_CURLY_CLOSE)
+		return classE
+
 	def _compileClassVarDec(self, parent):
 		tok = self.iter.lookahead()
 		while tok.type == tokenizor.TOK_KEYWORD and tok.value in _CLASSVARDEC.FIELD_TYPES:
@@ -145,7 +132,7 @@ class CompilationEngine:
 		self._compileStatements(bodyE)
 		self._readSymbol(bodyE, _SYMBOLS.BRACKET_CURLY_CLOSE)
 		parent.append(bodyE)
-	
+
 	def _compileStatements(self, parent):
 		statementsE = Element(_ELEMENTS.STATEMENTS)
 		tok = self.iter.lookahead()
@@ -200,19 +187,17 @@ class CompilationEngine:
 		if len(statementsE) == 0:
 			statementsE.text = "\n"
 		parent.append(statementsE)
-	
+
 	def _compileExpression(self, parent):
 		expressionE = Element(_ELEMENTS.EXPRESSION)
 		self._readTerm(expressionE)
 		tok = self.iter.lookahead()
-		self._printToken(tok)
-		print ""
 		while tok.type == tokenizor.TOK_SYMBOL and tok.value in _SYMBOLS.OPERATORS:
 			self._readSymbol(expressionE)
 			self._readTerm(expressionE)
 			tok = self.iter.lookahead()
 		parent.append(expressionE)
-		
+
 	def _readTerm(self, parent):
 		tok = self.iter.next()
 		termE = Element(_ELEMENTS.TERM)
@@ -244,7 +229,7 @@ class CompilationEngine:
 		else:
 			raise self._syntaxError("Unexpected %s." % tok.value, tok)
 		parent.append(termE)
-		
+
 	def _compileExpressionList(self, parent):
 		self._readSymbol(parent, _SYMBOLS.PARENTHESES_OPEN)
 		expListE = Element(_ELEMENTS.EXPRESSION_LIST)
@@ -253,11 +238,12 @@ class CompilationEngine:
 			self._compileExpression(expListE)
 			self._readSymbolOptional(expListE, _SYMBOLS.COMMA)
 			tok = self.iter.lookahead()
+		# hack for TextComparer
 		if len(expListE) == 0:
 			expListE.text = "\n"
 		parent.append(expListE)
 		self._readSymbol(parent, _SYMBOLS.PARENTHESES_CLOSE)
-	
+
 	def _compileDo(self, parent):
 		statementE = Element(_ELEMENTS.STATEMENT_DO)
 		statementE.append(_leafElement(_ELEMENTS.KEYWORD, _STATEMENTS.DO))
@@ -267,7 +253,7 @@ class CompilationEngine:
 		self._compileExpressionList(statementE)
 		self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
 		parent.append(statementE)
-	
+
 	def _compileVarDec(self, parent):
 		tok = self.iter.lookahead()
 		while tok.type == tokenizor.TOK_KEYWORD and tok.value == _KEYWORDS.VAR:
@@ -293,12 +279,12 @@ class CompilationEngine:
 		if len(paramListE) == 0:
 			paramListE.text = "\n"
 		parent.append(paramListE)
-	
+
 	def _readIdentifier(self, parent):
 		tok = self.iter.next()
 		self._assertToken(tok, _ELEMENTS.IDENTIFIER, type_=tokenizor.TOK_IDENTIFIER)
 		parent.append(_leafElement(_ELEMENTS.IDENTIFIER, tok.value))
-	
+
 	def _readType(self, parent):
 		tok = self.iter.next()
 		if tok.type == tokenizor.TOK_KEYWORD and tok.value in _CLASSVARDEC.VAR_TYPES:
@@ -330,7 +316,7 @@ class CompilationEngine:
 			parent.append(_leafElement(_ELEMENTS.SYMBOL, tok.value))
 			return True
 		return False
-	
+
 	def _readKeywordOptional(self, parent, expected):
 		tok = self.iter.lookahead()
 		if tok.type == tokenizor.TOK_KEYWORD and tok.value == expected:

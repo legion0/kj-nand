@@ -1,8 +1,5 @@
 import sys, os
 from compilation import CompilationEngine
-# from xml.dom.minidom import parseString
-# from xml.etree.ElementTree import tostring
-#print parseString(tostring(root)).toprettyxml()
 
 USAGE_MSG = "USAGE: JackCompiler <source>"
 
@@ -28,16 +25,15 @@ def main(argv):
 		baseName, _ = os.path.splitext(fileName)
 		with open(filePath) as f:
 			source = f.read()
-		outFileName = "_%s.xml" % (baseName) # TODO: fix name
+		outFileName = "%s.xml" % (baseName)
 		outFilePath = os.path.join(dirPath, outFileName)
 		with open(outFilePath, "w") as f:
-	# 		compiler = CompilationEngine(source, sys.stdout)
 			compiler = CompilationEngine(source, f)
-		# 	try:
-			compiler.compile()
-		# 	except SyntaxError as ex:
-		# 		ex.filename = fileName
-		# 		die(ex)
+			try:
+				compiler.compile()
+			except SyntaxError as ex:
+				ex.filename = fileName
+				die(ex)
 
 def die(ex):
 	if isinstance(ex, basestring):
@@ -50,14 +46,13 @@ def die(ex):
 		print >> sys.stderr, "ERROR: UNKNOWN."
 	exit(-1)
 
-def formatSyntaxError(ex):
-	return """File "__FILE__", line __LINENO__
+SYNTAX_ERROR_TEMPLATE = """File "__FILE__", line __LINENO__
 __LINE__
 __SPACES__^
-SyntaxError: __MSG__""".replace("__FILE__", ex.filename).replace("__LINENO__", str(ex.lineno)).replace("__LINE__", ex.text.rstrip()).replace("__SPACES__", " " * ex.offset).replace("__MSG__", ex.msg)
+SyntaxError: __MSG__"""
+
+def formatSyntaxError(ex):
+	return SYNTAX_ERROR_TEMPLATE.replace("__FILE__", ex.filename).replace("__LINENO__", str(ex.lineno)).replace("__LINE__", ex.text.rstrip()).replace("__SPACES__", " " * ex.offset).replace("__MSG__", ex.msg)
 
 if __name__ == "__main__":
-# 	main(sys.argv[1:])
-	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\ArrayTest\Main.jack"])
-#   	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\Square\\"])
-#   	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\ArrayTest\\"])
+	main(sys.argv[1:])

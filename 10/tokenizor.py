@@ -1,19 +1,26 @@
-## {{{ http://code.activestate.com/recipes/52298/ (r3)
-"""
-	MoinMoin - Python Source Parser
-"""
-
-# Imports
 import sys, re
 import string, cStringIO
 import token, tokenize
 from collections import namedtuple
 
+Token = namedtuple("Token", ["type", "value", "srow", "scol", "erow", "ecol", "line"])
 
+TOK_STRING = token.STRING
 
-#############################################################################
-### Python Source Parser (does Hilighting)
-#############################################################################
+tmp_tok = token.NT_OFFSET + 1
+TOK_KEYWORD = tmp_tok
+token.tok_name[tmp_tok] = "KEYWORD"
+tmp_tok += 1
+TOK_SYMBOL = tmp_tok
+token.tok_name[tmp_tok] = "SYMBOL"
+tmp_tok += 1
+TOK_INTEGER = tmp_tok
+token.tok_name[tmp_tok] = "INTEGER"
+tmp_tok += 1
+TOK_IDENTIFIER = tmp_tok
+token.tok_name[tmp_tok] = "IDENTIFIER"
+del tmp_tok
+_TOKENS = (TOK_KEYWORD, TOK_SYMBOL, TOK_INTEGER, TOK_IDENTIFIER, TOK_STRING)
 
 def newTokenizor(source):
 	return Lookahead(Parser(source).parse())
@@ -41,6 +48,7 @@ _KEYWORDS = (
 	"while",
 	"return",
 )
+
 _SYMBOLS = (
 	"{",
 	"}",
@@ -63,26 +71,6 @@ _SYMBOLS = (
 	"~",
 )
 
-TOK_STRING = token.STRING
-
-tmp_tok = token.NT_OFFSET + 1
-TOK_KEYWORD = tmp_tok
-token.tok_name[tmp_tok] = "KEYWORD"
-tmp_tok += 1
-TOK_SYMBOL = tmp_tok
-token.tok_name[tmp_tok] = "SYMBOL"
-tmp_tok += 1
-TOK_INTEGER = tmp_tok
-token.tok_name[tmp_tok] = "INTEGER"
-tmp_tok += 1
-TOK_IDENTIFIER = tmp_tok
-token.tok_name[tmp_tok] = "IDENTIFIER"
-del tmp_tok
-_TOKENS = (TOK_KEYWORD, TOK_SYMBOL, TOK_INTEGER, TOK_IDENTIFIER, TOK_STRING)
-
-def getTypeName(tok_type):
-	return token.tok_name[tok_type]
-
 class Lookahead:
 	def __init__(self, iter_):
 		self.iter = iter_
@@ -98,7 +86,6 @@ class Lookahead:
 			return self.iter.next()
 
 	def lookahead(self, n = 0):
-		"""Return an item n entries ahead in the iteration."""
 		while n >= len(self.buffer):
 			try:
 				self.buffer.append(self.iter.next())
@@ -106,17 +93,9 @@ class Lookahead:
 				return None
 		return self.buffer[n]
 
-Token = namedtuple("Token", ["type", "value", "srow", "scol", "erow", "ecol", "line"])
-
 class Parser:
-	""" Send colored python source.
-	"""
-	COMMENT_SINGLE = 1
-	COMMENT_MULTI = 2
 
 	def __init__(self, raw, out = sys.stdout):
-		""" Store the source text.
-		"""
 		self.raw = string.strip(string.expandtabs(raw))
 		self.out = out
 		self.inComment = False
@@ -129,9 +108,6 @@ class Parser:
 		self.nextTok = None
 
 	def parse(self):
-		""" Parse and send the colored source.
-		"""
-		# store line offsets in self.lines
 		self.lines = [0, 0]
 		pos = 0
 		while 1:
@@ -140,7 +116,6 @@ class Parser:
 			self.lines.append(pos)
 		self.lines.append(len(self.raw))
 
-		# parse the source and write it
 		self.pos = 0
 		text = cStringIO.StringIO(self.raw)
 		self.iter = Lookahead(tokenize.generate_tokens(text.readline))
@@ -162,7 +137,6 @@ class Parser:
 		for _ in xrange(jump):
 			self.tok = self.iter.next()
 			self.nextTok = self.iter.lookahead()
-			self._printToken(self.tok)
 
 	def skipComments(self):
 		junk = False
@@ -178,13 +152,6 @@ class Parser:
 			self.next(2)
 		return junk
 
-	def _printToken(self, tok):
-# 		if tok is None:
-# 			print "[%-10s] %s" % ("NONE", "")
-# 		else:
-# 			print "[%-10s] %s" % (getTypeName(tok[0]), tok[1])
-		pass
-
 	def skipJunk(self):
 		if self.skipComments() or self.skipMisc():
 			self.skipJunk()
@@ -197,12 +164,7 @@ class Parser:
 		return junk
 
 	def processToken(self):
-		""" Token handler.
-		"""
-#  		if False:
-#   			print "[%s(%d)] %s" % (token.tok_name[toktype], toktype, toktext)
-# 			print "start", srow,scol, "end", erow,ecol, "line:", line
- 		toktype, toktext, (srow,scol), (erow,ecol), line = self.tok
+		toktype, toktext, (srow,scol), (erow,ecol), line = self.tok
 		self.tok = list(self.tok)
 		if toktype == token.NAME:
 			if toktext in _KEYWORDS:
