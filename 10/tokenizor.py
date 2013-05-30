@@ -125,6 +125,8 @@ class Parser:
 		self.possibleMultilineComment = False
 		self.possibleMultilineChar = None
 		self.backupMode = False
+		self.tok = None
+		self.nextTok = None
 
 	def parse(self):
 		""" Parse and send the colored source.
@@ -141,71 +143,67 @@ class Parser:
 		# parse the source and write it
 		self.pos = 0
 		text = cStringIO.StringIO(self.raw)
+		self.iter = Lookahead(tokenize.generate_tokens(text.readline))
+		self.next()
 		try:
-			for tok in tokenize.generate_tokens(text.readline):
-				tok = self.nextToken(*tok)
-				if tok is None:
-					continue
+			while self.tok is not None:
+				self.skipJunk()
+				self.processToken()
+				tok = self.tok
 				yield Token(tok[0], tok[1], tok[2][0], tok[2][1], tok[3][0], tok[3][1], tok[4])
+				self.next()
 		except tokenize.TokenError, ex:
 			msg = ex[0]
 			line = ex[1][0]
 			self.out.write("ERROR: %s %s\n" % (
 				msg, self.raw[self.lines[line]:]))
 
-	def nextToken(self, toktype, toktext, (srow,scol), (erow,ecol), line):
+	def next(self, jump = 1):
+		for _ in xrange(jump):
+			self.tok = self.iter.next()
+			self.nextTok = self.iter.lookahead()
+			self._printToken(self.tok)
+
+	def skipComments(self):
+		junk = False
+		if self.tok[0] == token.OP and self.tok[1] == "//":
+			junk = True
+			while self.tok[0] not in (token.NEWLINE, tokenize.NL):
+				self.next()
+			self.next()
+		if self.tok[0] == token.OP and self.tok[1] == "/" and self.nextTok[0] == token.OP and self.nextTok[1] in ("*", "**"):
+			junk = True
+			while not (self.tok[0] == token.OP and self.tok[1] in ("*", "**") and self.nextTok[0] == token.OP and self.nextTok[1] == "/"):
+				self.next()
+			self.next(2)
+		return junk
+
+	def _printToken(self, tok):
+# 		if tok is None:
+# 			print "[%-10s] %s" % ("NONE", "")
+# 		else:
+# 			print "[%-10s] %s" % (getTypeName(tok[0]), tok[1])
+		pass
+
+	def skipJunk(self):
+		if self.skipComments() or self.skipMisc():
+			self.skipJunk()
+
+	def skipMisc(self):
+		junk = False
+		while self.tok[0] in (tokenize.NL, token.INDENT, token.DEDENT, token.NEWLINE, token.ENDMARKER):
+			self.next()
+			junk = True
+		return junk
+
+	def processToken(self):
 		""" Token handler.
 		"""
 #  		if False:
 #   			print "[%s(%d)] %s" % (token.tok_name[toktype], toktype, toktext)
 # 			print "start", srow,scol, "end", erow,ecol, "line:", line
-		###
-		### HANDLE COMMENTS
-		###
-		if self.backupMode:
-			self.backupMode = False
-			return self.backup
-		if self.inComment:
-			if self.commentType == self.COMMENT_SINGLE:
-				if toktype in (token.NEWLINE, tokenize.NL):
-					self.inComment = False
-			elif self.commentType == self.COMMENT_MULTI:
-				if toktype == token.OP and toktext == "/" and self.backup[0] == token.OP and self.backup[1] in ("*", "**"):
-					self.inComment = False
-			self.backup = (toktype, toktext, (srow,scol), (erow,ecol), line)
-			return
-		if toktype == token.OP and toktext == "//":
-			self.inComment = True
-			self.commentType = self.COMMENT_SINGLE
-			self.backup = (toktype, toktext, (srow,scol), (erow,ecol), line)
-			return
-		if self.possibleMultilineComment:
-			self.possibleMultilineComment = False
-			if toktype == token.OP and toktext in ("*", "**"):
-				self.inComment = True
-				self.commentType = self.COMMENT_MULTI
-				self.backup = (toktype, toktext, (srow,scol), (erow,ecol), line)
-				return
-			self.backupMode = True
-			tmp = self.backup
-			self.backup = (toktype, toktext, (srow,scol), (erow,ecol), line)
-			return tmp
-		if toktype == token.OP and toktext == "/":
-			self.possibleMultilineComment = True
-			self.backup = (toktype, toktext, (srow,scol), (erow,ecol), line)
-			return
-		###
-		###
-		###
-		
-		# JUNK TOKENS
-		if toktype in (tokenize.NL, token.INDENT, token.DEDENT, token.NEWLINE, token.ENDMARKER):
-			self.backup = (toktype, toktext, (srow,scol), (erow,ecol), line)
-			return
-		
-		###
-		### VALIDATION
-		###
+ 		toktype, toktext, (srow,scol), (erow,ecol), line = self.tok
+		self.tok = list(self.tok)
 		if toktype == token.NAME:
 			if toktext in _KEYWORDS:
 				toktype = TOK_KEYWORD
@@ -223,5 +221,7 @@ class Parser:
 			toktype = TOK_INTEGER
 		if toktype not in _TOKENS: # misc illegal tokens
 			raise SyntaxError("Unknown Expression %s" % toktext, (None, srow, scol, line))
-		self.backup = (toktype, toktext, (srow,scol), (erow,ecol), line)
-		return self.backup
+		if toktype == token.STRING:
+			toktext = toktext[1:-1]
+		self.tok = (toktype, toktext, (srow,scol), (erow,ecol), line)
+		return
