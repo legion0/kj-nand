@@ -1,0 +1,21 @@
+legion, yotamk
+===============================================================================
+Jonathan Kibarski, ID 303756175, phenixdoc@gmail.com
+Yotam Katznelson, ID 038196903, yotam.katznelson@mail.huji.ac.il
+===============================================================================
+
+                           Project 10 - Compiler I (Syntax Analysis)
+                           ----------------------- 
+
+
+Submitted Files
+---------------
+README - This file.
+Makefile
+JackCompiler.py
+compilation.py
+tokenizor.py
+
+Remarks
+-------
+* None
