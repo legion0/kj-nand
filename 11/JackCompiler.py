@@ -30,11 +30,11 @@ def main(argv):
 		outFilePath = os.path.join(dirPath, outFileName)
 		with open(outFilePath, "w") as f:
 			compiler = CompilationEngine(source, f)
-			try:
-				compiler.compile()
-			except SyntaxError as ex:
-				ex.filename = fileName
-				die(ex)
+# 			try:
+			compiler.compile()
+# 			except SyntaxError as ex:
+# 				ex.filename = fileName
+# 				die(ex)
 
 def die(ex):
 	if isinstance(ex, basestring):
@@ -56,4 +56,8 @@ def formatSyntaxError(ex):
 	return SYNTAX_ERROR_TEMPLATE.replace("__FILE__", ex.filename).replace("__LINENO__", str(ex.lineno)).replace("__LINE__", ex.text.rstrip()).replace("__SPACES__", " " * ex.offset).replace("__MSG__", ex.msg)
 
 if __name__ == "__main__":
-	main(sys.argv[1:])
+	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\ArrayTest"])
+	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\ExpressionlessSquare"])
+	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\Square"])
+	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\11\Seven"])
+# 	main(sys.argv[1:])

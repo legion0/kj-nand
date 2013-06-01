@@ -83,13 +83,9 @@ class CompilationEngine:
 		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
 
 	def _compileClass(self):
-		tok = self.iter.next()
-		self._assertToken(tok, _ELEMENTS.CLASS, value_=_ELEMENTS.CLASS)
 		classE = Element(_ELEMENTS.CLASS)
-		classE.append(_leafElement(_ELEMENTS.KEYWORD, _ELEMENTS.CLASS))
-		tok = self.iter.next()
-		self._assertToken(tok, _ELEMENTS.IDENTIFIER, type_=tokenizor.TOK_IDENTIFIER)
-		classE.append(_leafElement(_ELEMENTS.IDENTIFIER, tok.value))
+		self._readKeyword(classE, _ELEMENTS.CLASS)
+		self._readIdentifier(classE)
 		self._readSymbol(classE, _SYMBOLS.BRACKET_CURLY_OPEN)
 		self._compileClassVarDec(classE)
 		self._compileSubroutine(classE)
@@ -97,33 +93,27 @@ class CompilationEngine:
 		return classE
 
 	def _compileClassVarDec(self, parent):
-		tok = self.iter.lookahead()
-		while tok.type == tokenizor.TOK_KEYWORD and tok.value in _CLASSVARDEC.FIELD_TYPES:
+		while self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _CLASSVARDEC.FIELD_TYPES:
 			classVarDecE = Element(_ELEMENTS.CLASSVARDEC)
-			tok = self.iter.next()
-			classVarDecE.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+			self._readKeyword(classVarDecE)
 			self._readType(classVarDecE)
 			self._readIdentifier(classVarDecE)
 			while self._readSymbolOptional(classVarDecE, _SYMBOLS.COMMA):
 				self._readIdentifier(classVarDecE)
 			self._readSymbol(classVarDecE, _SYMBOLS.SEMI_COLON)
 			parent.append(classVarDecE)
-			tok = self.iter.lookahead()
 
 	def _compileSubroutine(self, parent):
-		tok = self.iter.lookahead()
-		while tok.type == tokenizor.TOK_KEYWORD and tok.value in _SUBROUTINEDEC.TYPES:
+		while self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _SUBROUTINEDEC.TYPES:
 			subroutineDecE = Element(_ELEMENTS.SUBROUTINEDEC)
-			tok = self.iter.next()
-			subroutineDecE.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+			self._readKeyword(subroutineDecE)
 			self._readReturnType(subroutineDecE)
 			self._readIdentifier(subroutineDecE)
 			self._readSymbol(subroutineDecE, _SYMBOLS.PARENTHESES_OPEN)
-			self._readParameters(subroutineDecE)
+			self._compileParameters(subroutineDecE)
 			self._readSymbol(subroutineDecE, _SYMBOLS.PARENTHESES_CLOSE)
 			self._compileSubroutineBody(subroutineDecE)
 			parent.append(subroutineDecE)
-			tok = self.iter.lookahead()
 
 	def _compileSubroutineBody(self, parent):
 		bodyE = Element(_ELEMENTS.SUBROUTINEBODY)
@@ -135,12 +125,10 @@ class CompilationEngine:
 
 	def _compileStatements(self, parent):
 		statementsE = Element(_ELEMENTS.STATEMENTS)
-		tok = self.iter.lookahead()
-		while tok.type == tokenizor.TOK_KEYWORD and tok.value in _STATEMENTS.TYPE_NAMES:
-			tok = self.iter.next()
-			if tok.value == _STATEMENTS.LET:
+		while self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _STATEMENTS.TYPE_NAMES:
+			if self.nextTok.value == _STATEMENTS.LET:
 				statementE = Element(_ELEMENTS.STATEMENT_LET)
-				statementE.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+				self._readKeyword(statementE)
 				self._readIdentifier(statementE)
 				if self._readSymbolOptional(statementE, _SYMBOLS.BRACKET_OPEN):
 					self._compileExpression(statementE)
@@ -149,9 +137,9 @@ class CompilationEngine:
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
 				statementsE.append(statementE)
-			elif tok.value == _STATEMENTS.IF:
+			elif self.nextTok.value == _STATEMENTS.IF:
 				statementE = Element(_ELEMENTS.STATEMENT_IF)
-				statementE.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+				self._readKeyword(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_OPEN)
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_CLOSE)
@@ -163,9 +151,9 @@ class CompilationEngine:
 					self._compileStatements(statementE)
 					self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_CLOSE)
 				statementsE.append(statementE)
-			elif tok.value == _STATEMENTS.WHILE:
+			elif self.nextTok.value == _STATEMENTS.WHILE:
 				statementE = Element(_ELEMENTS.STATEMENT_WHILE)
-				statementE.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+				self._readKeyword(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_OPEN)
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_CLOSE)
@@ -173,17 +161,15 @@ class CompilationEngine:
 				self._compileStatements(statementE)
 				self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_CLOSE)
 				statementsE.append(statementE)
-			elif tok.value == _STATEMENTS.DO:
+			elif self.nextTok.value == _STATEMENTS.DO:
 				self._compileDo(statementsE)
-			elif tok.value == _STATEMENTS.RETURN:
+			elif self.nextTok.value == _STATEMENTS.RETURN:
 				statementE = Element(_ELEMENTS.STATEMENT_RETURN)
-				statementE.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
-				tok = self.iter.lookahead()
-				if not (tok.type == tokenizor.TOK_SYMBOL and tok.value == _SYMBOLS.SEMI_COLON):
+				self._readKeyword(statementE)
+				if not (self.nextTok.type == tokenizor.TOK_SYMBOL and self.nextTok.value == _SYMBOLS.SEMI_COLON):
 					self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
 				statementsE.append(statementE)
-			tok = self.iter.lookahead()
 		if len(statementsE) == 0:
 			statementsE.text = "\n"
 		parent.append(statementsE)
@@ -191,53 +177,17 @@ class CompilationEngine:
 	def _compileExpression(self, parent):
 		expressionE = Element(_ELEMENTS.EXPRESSION)
 		self._readTerm(expressionE)
-		tok = self.iter.lookahead()
-		while tok.type == tokenizor.TOK_SYMBOL and tok.value in _SYMBOLS.OPERATORS:
+		while self.nextTok.type == tokenizor.TOK_SYMBOL and self.nextTok.value in _SYMBOLS.OPERATORS:
 			self._readSymbol(expressionE)
 			self._readTerm(expressionE)
-			tok = self.iter.lookahead()
 		parent.append(expressionE)
-
-	def _readTerm(self, parent):
-		tok = self.iter.next()
-		termE = Element(_ELEMENTS.TERM)
-		if tok.type == tokenizor.TOK_INTEGER:
-			termE.append(_leafElement(_ELEMENTS.INTEGER_CONSTANT, tok.value))
-		elif tok.type == tokenizor.TOK_STRING:
-			termE.append(_leafElement(_ELEMENTS.STRING_CONSTANT, tok.value))
-		elif tok.type == tokenizor.TOK_KEYWORD and tok.value in _KEYWORDS.CONSTANTS:
-			termE.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
-		elif tok.type == tokenizor.TOK_IDENTIFIER:
-			termE.append(_leafElement(_ELEMENTS.IDENTIFIER, tok.value))
-			tok = self.iter.lookahead()
-			if self._readSymbolOptional(termE, _SYMBOLS.BRACKET_OPEN):
-				self._compileExpression(termE)
-				self._readSymbol(termE, _SYMBOLS.BRACKET_CLOSE)
-			elif tok.type == tokenizor.TOK_SYMBOL and tok.value == _SYMBOLS.PARENTHESES_OPEN:
-				self._compileExpressionList(termE)
-				self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
-			elif self._readSymbolOptional(termE, _SYMBOLS.DOT):
-				self._readIdentifier(termE)
-				self._compileExpressionList(termE)
-		elif tok.type == tokenizor.TOK_SYMBOL and tok.value == _SYMBOLS.PARENTHESES_OPEN:
-			termE.append(_leafElement(_ELEMENTS.SYMBOL, tok.value))
-			self._compileExpression(termE)
-			self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
-		elif tok.type == tokenizor.TOK_SYMBOL and tok.value in _SYMBOLS.UNARY_OPARTORS:
-			termE.append(_leafElement(_ELEMENTS.SYMBOL, tok.value))
-			self._readTerm(termE)
-		else:
-			raise self._syntaxError("Unexpected %s." % tok.value, tok)
-		parent.append(termE)
 
 	def _compileExpressionList(self, parent):
 		self._readSymbol(parent, _SYMBOLS.PARENTHESES_OPEN)
 		expListE = Element(_ELEMENTS.EXPRESSION_LIST)
-		tok = self.iter.lookahead()
-		while not (tok.type == tokenizor.TOK_SYMBOL and tok.value == _SYMBOLS.PARENTHESES_CLOSE):
+		while not (self.nextTok.type == tokenizor.TOK_SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_CLOSE):
 			self._compileExpression(expListE)
 			self._readSymbolOptional(expListE, _SYMBOLS.COMMA)
-			tok = self.iter.lookahead()
 		# hack for TextComparer
 		if len(expListE) == 0:
 			expListE.text = "\n"
@@ -246,7 +196,7 @@ class CompilationEngine:
 
 	def _compileDo(self, parent):
 		statementE = Element(_ELEMENTS.STATEMENT_DO)
-		statementE.append(_leafElement(_ELEMENTS.KEYWORD, _STATEMENTS.DO))
+		self._readKeyword(statementE, _STATEMENTS.DO)
 		self._readIdentifier(statementE)
 		if self._readSymbolOptional(statementE, _SYMBOLS.DOT):
 			self._readIdentifier(statementE)
@@ -255,79 +205,123 @@ class CompilationEngine:
 		parent.append(statementE)
 
 	def _compileVarDec(self, parent):
-		tok = self.iter.lookahead()
-		while tok.type == tokenizor.TOK_KEYWORD and tok.value == _KEYWORDS.VAR:
-			tok = self.iter.next()
+		while self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value == _KEYWORDS.VAR:
 			varDecE = Element(_ELEMENTS.VAR_DEC)
-			varDecE.append(_leafElement(_ELEMENTS.KEYWORD, _KEYWORDS.VAR))
+			self._readKeyword(varDecE, _KEYWORDS.VAR)
 			self._readType(varDecE)
 			self._readIdentifier(varDecE)
 			while self._readSymbolOptional(varDecE, _SYMBOLS.COMMA):
 				self._readIdentifier(varDecE)
 			self._readSymbol(varDecE, _SYMBOLS.SEMI_COLON)
 			parent.append(varDecE)
-			tok = self.iter.lookahead()
 
-	def _readParameters(self, parent):
-		tok = self.iter.lookahead()
+	def _compileParameters(self, parent):
 		paramListE = Element(_ELEMENTS.PARAM_LIST)
-		while (tok.type == tokenizor.TOK_KEYWORD and tok.value in _CLASSVARDEC.VAR_TYPES) or tok.type == tokenizor.TOK_IDENTIFIER:
+		while (self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _CLASSVARDEC.VAR_TYPES) or self.nextTok.type == tokenizor.TOK_IDENTIFIER:
 			self._readType(paramListE)
 			self._readIdentifier(paramListE)
 			self._readSymbolOptional(paramListE, _SYMBOLS.COMMA)
-			tok = self.iter.lookahead()
 		if len(paramListE) == 0:
 			paramListE.text = "\n"
 		parent.append(paramListE)
 
+##############################
+########## READ ##############
+##############################
+
+	def _readTerm(self, parent):
+		termE = Element(_ELEMENTS.TERM)
+		if self.nextTok.type == tokenizor.TOK_INTEGER:
+			self.next()
+			termE.append(_leafElement(_ELEMENTS.INTEGER_CONSTANT, self.tok.value))
+		elif self.nextTok.type == tokenizor.TOK_STRING:
+			self.next()
+			termE.append(_leafElement(_ELEMENTS.STRING_CONSTANT, self.tok.value))
+		elif self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _KEYWORDS.CONSTANTS:
+			self.next()
+			termE.append(_leafElement(_ELEMENTS.KEYWORD, self.tok.value))
+		elif self.nextTok.type == tokenizor.TOK_IDENTIFIER:
+			self._readIdentifier(termE)
+			if self._readSymbolOptional(termE, _SYMBOLS.BRACKET_OPEN):
+				self._compileExpression(termE)
+				self._readSymbol(termE, _SYMBOLS.BRACKET_CLOSE)
+			elif self.nextTok.type == tokenizor.TOK_SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_OPEN:
+				self._compileExpressionList(termE)
+				self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
+			elif self._readSymbolOptional(termE, _SYMBOLS.DOT):
+				self._readIdentifier(termE)
+				self._compileExpressionList(termE)
+		elif self.nextTok.type == tokenizor.TOK_SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_OPEN:
+			self.next()
+			termE.append(_leafElement(_ELEMENTS.SYMBOL, self.tok.value))
+			self._compileExpression(termE)
+			self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
+		elif self.nextTok.type == tokenizor.TOK_SYMBOL and self.nextTok.value in _SYMBOLS.UNARY_OPARTORS:
+			self.next()
+			termE.append(_leafElement(_ELEMENTS.SYMBOL, self.tok.value))
+			self._readTerm(termE)
+		else:
+			raise self._syntaxError("Unexpected %s." % self.tok.value)
+		parent.append(termE)
+
 	def _readIdentifier(self, parent):
-		tok = self.iter.next()
-		self._assertToken(tok, _ELEMENTS.IDENTIFIER, type_=tokenizor.TOK_IDENTIFIER)
-		parent.append(_leafElement(_ELEMENTS.IDENTIFIER, tok.value))
+		self.next()
+		self._assertToken(self.tok, _ELEMENTS.IDENTIFIER, type_=tokenizor.TOK_IDENTIFIER)
+		parent.append(_leafElement(_ELEMENTS.IDENTIFIER, self.tok.value))
 
 	def _readType(self, parent):
-		tok = self.iter.next()
-		if tok.type == tokenizor.TOK_KEYWORD and tok.value in _CLASSVARDEC.VAR_TYPES:
-			parent.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+		if self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _CLASSVARDEC.VAR_TYPES:
+			self.next()
+			parent.append(_leafElement(_ELEMENTS.KEYWORD, self.tok.value))
 		else:
-			self._assertToken(tok, _ELEMENTS.IDENTIFIER, type_=tokenizor.TOK_IDENTIFIER)
-			parent.append(_leafElement(_ELEMENTS.IDENTIFIER, tok.value))
+			self._readIdentifier(parent)
 
 	def _readReturnType(self, parent):
-		tok = self.iter.next()
-		if tok.type == tokenizor.TOK_KEYWORD and tok.value in _SUBROUTINEDEC.RETURN_TYPES:
-			parent.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+		if self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _SUBROUTINEDEC.RETURN_TYPES:
+			self.next()
+			parent.append(_leafElement(_ELEMENTS.KEYWORD, self.tok.value))
 		else:
-			self._assertToken(tok, _ELEMENTS.IDENTIFIER, type_=tokenizor.TOK_IDENTIFIER)
-			parent.append(_leafElement(_ELEMENTS.IDENTIFIER, tok.value))
+			self._readIdentifier(parent)
 
 	def _readSymbol(self, parent, expected = None):
-		tok = self.iter.next()
+		self.next()
 		expectedStr = expected if expected is not None else _ELEMENTS.SYMBOL
-		self._assertToken(tok, expectedStr, type_=tokenizor.TOK_SYMBOL)
+		self._assertToken(self.tok, expectedStr, type_=tokenizor.TOK_SYMBOL)
 		if expected is not None:
-			self._assertToken(tok, expected, value_=expected)
-		parent.append(_leafElement(_ELEMENTS.SYMBOL, tok.value))
+			self._assertToken(self.tok, expected, value_=expected)
+		parent.append(_leafElement(_ELEMENTS.SYMBOL, self.tok.value))
+
+	def _readKeyword(self, parent, expected = None):
+		self.next()
+		expectedStr = expected if expected is not None else _ELEMENTS.KEYWORD
+		self._assertToken(self.tok, expectedStr, type_=tokenizor.TOK_KEYWORD)
+		if expected is not None:
+			self._assertToken(self.tok, expected, value_=expected)
+		parent.append(_leafElement(_ELEMENTS.KEYWORD, self.tok.value))
 
 	def _readSymbolOptional(self, parent, expected):
-		tok = self.iter.lookahead()
-		if tok.type == tokenizor.TOK_SYMBOL and tok.value == expected:
-			self.iter.next()
-			parent.append(_leafElement(_ELEMENTS.SYMBOL, tok.value))
+		if self.nextTok.type == tokenizor.TOK_SYMBOL and self.nextTok.value == expected:
+			self.next()
+			parent.append(_leafElement(_ELEMENTS.SYMBOL, self.tok.value))
 			return True
 		return False
 
 	def _readKeywordOptional(self, parent, expected):
-		tok = self.iter.lookahead()
-		if tok.type == tokenizor.TOK_KEYWORD and tok.value == expected:
-			self.iter.next()
-			parent.append(_leafElement(_ELEMENTS.KEYWORD, tok.value))
+		if self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value == expected:
+			self.next()
+			parent.append(_leafElement(_ELEMENTS.KEYWORD, self.tok.value))
 			return True
 		return False
+
+	def next(self):
+		self.tok = self.iter.next()
+		self.nextTok = self.iter.lookahead()
 
 	def _assertToken(self, tok, expected_str, type_ = None, value_ = None):
 		if (type_ != None and tok.type != type_) or (value_ != None and tok.value != value_):
 			raise self._syntaxError("Expected %s but found %s" % (expected_str, tok.value), tok)
 
-	def _syntaxError(self, msg, tok):
+	def _syntaxError(self, msg, tok = None):
+		if tok is None:
+			tok = self.tok
 		return SyntaxError(msg, (None, tok.srow, tok.scol, tok.line))
