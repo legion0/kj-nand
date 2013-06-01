@@ -1,8 +1,14 @@
 from xml.etree.ElementTree import Element, tostring
 from xml.dom.minidom import parseString, Document
+from collections import namedtuple
 
 import tokenizor
 from tokenizor import newTokenizor
+from symbol_table import SymbolTable, KINDS as SYM_KINDS
+from vm_writer import VMWriter
+
+#TODO: remove
+import json
 
 class _ELEMENTS:
 	CLASS = "class"
@@ -50,6 +56,16 @@ class _SYMBOLS:
 	OPERATORS = ("+", "-", "*", "/", "&", "|", "<", ">", "=")
 	UNARY_OPARTORS = ("-", "~")
 
+_SYM_ART_MAP = {
+	"+": "ADD",
+	"+": "ADD",
+	"+": "ADD",
+	"+": "ADD",
+	"+": "ADD",
+	"+": "ADD",
+	"+": "ADD",
+}
+
 class _CLASSVARDEC:
 	FIELD_TYPES = ("static", "field")
 	VAR_TYPES = ("int", "char", "boolean")
@@ -66,6 +82,12 @@ class _STATEMENTS:
 	RETURN = "return"
 	TYPE_NAMES = (LET, IF, WHILE, DO, RETURN)
 
+_SYM_KIND_MAP = {
+	"field": SYM_KINDS.FIELD,
+	"static": SYM_KINDS.STATIC,
+	"var": SYM_KINDS.VAR,
+}
+
 def _leafElement(tag, text):
 	elem = Element(tag)
 	elem.text = "%s" % text
@@ -75,12 +97,15 @@ class CompilationEngine:
 	def __init__(self, source, destination):
 		self.src = source
 		self.dst = destination
+		self.writer = VMWriter(destination)
 		self.iter = newTokenizor(self.src)
 		self.doc = Document()
+		self._symbol_table = SymbolTable()
 
 	def compile(self):
 		root = self._compileClass()
-		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
+   		self.writer.writeXml(root)
+#    		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
 
 	def _compileClass(self):
 		classE = Element(_ELEMENTS.CLASS)
@@ -105,6 +130,7 @@ class CompilationEngine:
 
 	def _compileSubroutine(self, parent):
 		while self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _SUBROUTINEDEC.TYPES:
+			self._symbol_table.startSubroutine()
 			subroutineDecE = Element(_ELEMENTS.SUBROUTINEDEC)
 			self._readKeyword(subroutineDecE)
 			self._readReturnType(subroutineDecE)
@@ -267,7 +293,29 @@ class CompilationEngine:
 	def _readIdentifier(self, parent):
 		self.next()
 		self._assertToken(self.tok, _ELEMENTS.IDENTIFIER, type_=tokenizor.TOK_IDENTIFIER)
-		parent.append(_leafElement(_ELEMENTS.IDENTIFIER, self.tok.value))
+		name = self.tok.value
+		element = _leafElement(_ELEMENTS.IDENTIFIER, name)
+		type_ = None
+		kind = None
+		index = None
+		if self._symbol_table.typeOf(name) is None:
+			if parent.tag in (_ELEMENTS.CLASSVARDEC, _ELEMENTS.VAR_DEC) and len(parent) > 1:
+				type_ = parent[1].text
+				kind = _SYM_KIND_MAP[parent[0].text]
+			elif parent.tag == _ELEMENTS.PARAM_LIST:
+				type_ = parent[-1].text
+				kind = SYM_KINDS.ARG
+			if kind is not None:
+				index = self._symbol_table.define(name, type_, kind)
+		else:
+			type_ = self._symbol_table.typeOf(name)
+			kind = self._symbol_table.kindOf(name)
+			index = self._symbol_table.indexOf(name)
+		if kind is not None:
+			element.set("type", type_)
+			element.set("kind", str(kind))
+			element.set("index", str(index))
+		parent.append(element)
 
 	def _readType(self, parent):
 		if self.nextTok.type == tokenizor.TOK_KEYWORD and self.nextTok.value in _CLASSVARDEC.VAR_TYPES:
