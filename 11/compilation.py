@@ -21,6 +21,11 @@ class ELEMENTS:
 	KEYWORD_CONSTANT = "keywordConstant"
 	TERM = "term"
 
+_SYM_TRANSLATE_UNARY = {
+	"-": "neg",
+	"~": "not",
+}
+
 from xml.etree.ElementTree import Element, tostring
 from xml.dom.minidom import parseString, Document
 from collections import namedtuple
@@ -28,7 +33,14 @@ from collections import namedtuple
 import tokenizor
 from tokenizor import newTokenizor
 from symbol_table import SymbolTable, KINDS as SYM_KINDS
-from vm_writer import VMWriter
+from vm_writer import VMWriter, SEGMENT
+
+_SEG_TRANSLATE = {
+	SYM_KINDS.STATIC: SEGMENT.STATIC,
+	SYM_KINDS.FIELD: SEGMENT.THIS,
+	SYM_KINDS.ARG: SEGMENT.ARG,
+	SYM_KINDS.VAR: SEGMENT.LOCAL,
+}
 
 #TODO: remove
 import json
@@ -41,6 +53,13 @@ class _KEYWORDS:
 	CONSTANT_NULL = "null"
 	CONSTANT_THIS = "this"
 	CONSTANTS = (CONSTANT_FALSE, CONSTANT_NULL, CONSTANT_THIS, CONSTANT_TRUE)
+
+_KW_CONT_WRITE = {
+	_KEYWORDS.CONSTANT_TRUE: lambda writer: writer.writePush(SEGMENT.CONST, "0"),
+	_KEYWORDS.CONSTANT_FALSE: lambda writer: writer.writePush(SEGMENT.CONST, "1") or  writer.writeArithmetic("neg"),
+	_KEYWORDS.CONSTANT_NULL: lambda writer: writer.writePush(SEGMENT.CONST, "0"),
+	_KEYWORDS.CONSTANT_THIS: lambda writer: writer.writePush(SEGMENT.THIS, "0"),
+}
 
 class _SYMBOLS:
 	BRACKET_OPEN = "["
@@ -105,13 +124,13 @@ class CompilationEngine:
 	def compile(self):
 		root = self._compileClass()
 #		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
-		self.writer.writeXml(root)
+#		self.writer.writeXml(root)
 		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
 
 	def _compileClass(self):
 		classE = Element(ELEMENTS.CLASS)
 		self._readKeyword(classE, ELEMENTS.CLASS)
-		self._readIdentifier(classE)
+		self.className = self._readIdentifier(classE)
 		self._readSymbol(classE, _SYMBOLS.BRACKET_CURLY_OPEN)
 		self._compileClassVarDec(classE)
 		self._compileSubroutine(classE)
@@ -135,17 +154,28 @@ class CompilationEngine:
 			subroutineDecE = Element(ELEMENTS.SUBROUTINEDEC)
 			self._readKeyword(subroutineDecE)
 			self._readReturnType(subroutineDecE)
-			self._readIdentifier(subroutineDecE)
+			self.methodName = self._readIdentifier(subroutineDecE)
+			self._uid = -1
 			self._readSymbol(subroutineDecE, _SYMBOLS.PARENTHESES_OPEN)
 			self._compileParameters(subroutineDecE)
 			self._readSymbol(subroutineDecE, _SYMBOLS.PARENTHESES_CLOSE)
 			self._compileSubroutineBody(subroutineDecE)
 			parent.append(subroutineDecE)
 
+	def _gen_label(self, type_):
+		self._uid += 1
+		return "%s.%s.%s.%d" % (self.className, self.methodName, type_, self._uid)
+
+	def _gen_labels(self, *parts):
+		self._uid += 1
+		return ["%s.%s.%s.%d" % (self.className, self.methodName, part, self._uid) for part in parts]
+
 	def _compileSubroutineBody(self, parent):
 		bodyE = Element(ELEMENTS.SUBROUTINEBODY)
 		self._readSymbol(bodyE, _SYMBOLS.BRACKET_CURLY_OPEN)
-		self._compileVarDec(bodyE)
+		nArgs = self._compileVarDec(bodyE)
+		fName = "%s.%s" % (self.className, parent[2].text)
+		self.writer.writeFunction(fName, nArgs)
 		self._compileStatements(bodyE)
 		self._readSymbol(bodyE, _SYMBOLS.BRACKET_CURLY_CLOSE)
 		parent.append(bodyE)
@@ -156,7 +186,7 @@ class CompilationEngine:
 			if self.nextTok.value == _STATEMENTS.LET:
 				statementE = Element(ELEMENTS.STATEMENT_LET)
 				self._readKeyword(statementE)
-				self._readIdentifier(statementE)
+				identifier = self._readIdentifier(statementE)
 				if self._readSymbolOptional(statementE, _SYMBOLS.BRACKET_OPEN):
 					self._compileExpression(statementE)
 					self._readSymbol(statementE, _SYMBOLS.BRACKET_CLOSE)
@@ -164,30 +194,42 @@ class CompilationEngine:
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
 				statementsE.append(statementE)
+				self.writer.writePop(*self._identifier_data(identifier))
 			elif self.nextTok.value == _STATEMENTS.IF:
+				label_else, label_end = self._gen_labels("if.else", "if.end")
 				statementE = Element(ELEMENTS.STATEMENT_IF)
 				self._readKeyword(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_OPEN)
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_CLOSE)
+				self.writer.writeArithmetic("not")
+				self.writer.writeIf(label_else)
 				self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_OPEN)
 				self._compileStatements(statementE)
 				self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_CLOSE)
+				self.writer.writeGoto(label_end)
+				self.writer.writeLabel(label_else)
 				if self._readKeywordOptional(statementE, _KEYWORDS.ELSE):
 					self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_OPEN)
 					self._compileStatements(statementE)
 					self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_CLOSE)
+				self.writer.writeLabel(label_end)
 				statementsE.append(statementE)
 			elif self.nextTok.value == _STATEMENTS.WHILE:
+				label_start, label_end = self._gen_labels("while.start", "while.end")
+				self.writer.writeLabel(label_start)
 				statementE = Element(ELEMENTS.STATEMENT_WHILE)
 				self._readKeyword(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_OPEN)
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_CLOSE)
+				self.writer.writeIf(label_end)
 				self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_OPEN)
 				self._compileStatements(statementE)
 				self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_CLOSE)
 				statementsE.append(statementE)
+				self.writer.writeGoto(label_start)
+				self.writer.writeLabel(label_end)
 			elif self.nextTok.value == _STATEMENTS.DO:
 				self._compileDo(statementsE)
 			elif self.nextTok.value == _STATEMENTS.RETURN:
@@ -196,6 +238,7 @@ class CompilationEngine:
 				if not (self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == _SYMBOLS.SEMI_COLON):
 					self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
+				self.writer.writeReturn()
 				statementsE.append(statementE)
 		if len(statementsE) == 0:
 			statementsE.text = "\n"
@@ -205,42 +248,51 @@ class CompilationEngine:
 		expressionE = Element(ELEMENTS.EXPRESSION)
 		self._readTerm(expressionE)
 		while self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value in _SYMBOLS.OPERATORS:
-			self._readSymbol(expressionE)
+			symbol = self._readSymbol(expressionE)
 			self._readTerm(expressionE)
+			self.writer.writeArithmetic(symbol)
 		parent.append(expressionE)
 
 	def _compileExpressionList(self, parent):
 		self._readSymbol(parent, _SYMBOLS.PARENTHESES_OPEN)
 		expListE = Element(ELEMENTS.EXPRESSION_LIST)
+		nArgs = 0
 		while not (self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_CLOSE):
 			self._compileExpression(expListE)
 			self._readSymbolOptional(expListE, _SYMBOLS.COMMA)
+			nArgs += 1
 		# hack for TextComparer
 		if len(expListE) == 0:
 			expListE.text = "\n"
 		parent.append(expListE)
 		self._readSymbol(parent, _SYMBOLS.PARENTHESES_CLOSE)
+		return nArgs
 
 	def _compileDo(self, parent):
 		statementE = Element(ELEMENTS.STATEMENT_DO)
 		self._readKeyword(statementE, _STATEMENTS.DO)
-		self._readIdentifier(statementE)
+		identifier = self._readIdentifier(statementE)
 		if self._readSymbolOptional(statementE, _SYMBOLS.DOT):
-			self._readIdentifier(statementE)
-		self._compileExpressionList(statementE)
+			identifier = "%s.%s" % (identifier, self._readIdentifier(statementE))
+		nArgs = self._compileExpressionList(statementE)
 		self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
+		self.writer.writeCall(identifier, nArgs)
 		parent.append(statementE)
 
 	def _compileVarDec(self, parent):
+		nArgs = 0
 		while self.nextTok.type == tokenizor.KEYWORD and self.nextTok.value == _KEYWORDS.VAR:
 			varDecE = Element(ELEMENTS.VAR_DEC)
 			self._readKeyword(varDecE, _KEYWORDS.VAR)
 			self._readType(varDecE)
 			self._readIdentifier(varDecE)
+			nArgs += 1
 			while self._readSymbolOptional(varDecE, _SYMBOLS.COMMA):
 				self._readIdentifier(varDecE)
+				nArgs += 1
 			self._readSymbol(varDecE, _SYMBOLS.SEMI_COLON)
 			parent.append(varDecE)
+		return nArgs
 
 	def _compileParameters(self, parent):
 		paramListE = Element(ELEMENTS.PARAM_LIST)
@@ -261,23 +313,31 @@ class CompilationEngine:
 		if self.nextTok.type == tokenizor.INTEGER:
 			self.next()
 			termE.append(_leafElement(ELEMENTS.INTEGER_CONSTANT, self.tok.value))
+			self.writer.writePush(SEGMENT.CONST, self.tok.value)
 		elif self.nextTok.type == tokenizor.STRING:
 			self.next()
 			termE.append(_leafElement(ELEMENTS.STRING_CONSTANT, self.tok.value))
 		elif self.nextTok.type == tokenizor.KEYWORD and self.nextTok.value in _KEYWORDS.CONSTANTS:
 			self.next()
 			termE.append(_leafElement(ELEMENTS.KEYWORD, self.tok.value))
+			_KW_CONT_WRITE[self.tok.value](self.writer)
 		elif self.nextTok.type == tokenizor.IDENTIFIER:
-			self._readIdentifier(termE)
+			identifier = self._readIdentifier(termE)
+			nArgs = 0
 			if self._readSymbolOptional(termE, _SYMBOLS.BRACKET_OPEN):
 				self._compileExpression(termE)
 				self._readSymbol(termE, _SYMBOLS.BRACKET_CLOSE)
 			elif self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_OPEN:
-				self._compileExpressionList(termE)
+				nArgs = self._compileExpressionList(termE)
 				self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
+				self.writer.writeCall(identifier, nArgs)
 			elif self._readSymbolOptional(termE, _SYMBOLS.DOT):
-				self._readIdentifier(termE)
-				self._compileExpressionList(termE)
+				identifier = "%s.%s" % (identifier, self._readIdentifier(termE))
+				nArgs = self._compileExpressionList(termE)
+				self.writer.writeCall(identifier, nArgs)
+			else:
+				self.writer.writePush(*self._identifier_data(identifier))
+#				exit(0)
 		elif self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_OPEN:
 			self.next()
 			termE.append(_leafElement(ELEMENTS.SYMBOL, self.tok.value))
@@ -285,11 +345,16 @@ class CompilationEngine:
 			self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
 		elif self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value in _SYMBOLS.UNARY_OPARTORS:
 			self.next()
+			sym = _SYM_TRANSLATE_UNARY[self.tok.value]
 			termE.append(_leafElement(ELEMENTS.SYMBOL, self.tok.value))
 			self._readTerm(termE)
+			self.writer.writeArithmetic(sym)
 		else:
 			raise self._syntaxError("Unexpected %s." % self.tok.value)
 		parent.append(termE)
+
+	def _identifier_data(self, identifier):
+		return _SEG_TRANSLATE[self._symbol_table.kindOf(identifier)], self._symbol_table.indexOf(identifier)
 
 	def _readIdentifier(self, parent):
 		self.next()
@@ -317,6 +382,7 @@ class CompilationEngine:
 			element.set("kind", str(kind))
 			element.set("index", str(index))
 		parent.append(element)
+		return name
 
 	def _readType(self, parent):
 		if self.nextTok.type == tokenizor.KEYWORD and self.nextTok.value in _CLASSVARDEC.VAR_TYPES:
@@ -339,6 +405,7 @@ class CompilationEngine:
 		if expected is not None:
 			self._assertToken(self.tok, expected, value_=expected)
 		parent.append(_leafElement(ELEMENTS.SYMBOL, self.tok.value))
+		return self.tok.value
 
 	def _readKeyword(self, parent, expected = None):
 		self.next()

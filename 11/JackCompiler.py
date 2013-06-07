@@ -60,6 +60,6 @@ if __name__ == "__main__":
 # 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ArrayTest"])
 #  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ExpressionlessSquare"])
 # 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ExpressionlessSquare\SquareGame.jack"])
-  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\ConvertToBin"])
+  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\ConvertToBin\Main.jack"])
 # 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Seven"])
 # 	main(sys.argv[1:])

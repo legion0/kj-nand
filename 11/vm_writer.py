@@ -29,7 +29,14 @@ _SYM_TRANSLATE = {
 	"+": "add",
 	"*": "call Math.multiply 2",
 	"-": "sub",
+	"/": "call Math.divide 2",
+	"&": "and",
+	"|": "or",
+	"<": "lt",
+	">": "gt",
+	"=": "eq",
 }
+
 _SYM_TRANSLATE_UNARY = {
 	"-": "neg",
 	"~": "not",
@@ -59,13 +66,6 @@ _COMMANDS = {
 	COMMAND.NOT: None,
 }
 
-_SEGMENT_MAP = {
-	KINDS.ARG: SEGMENT.ARG,
-	KINDS.FIELD: SEGMENT.THIS,
-	KINDS.STATIC: SEGMENT.STATIC,
-	KINDS.VAR: SEGMENT.LOCAL,
-}
-
 class VMWriter:
 	def __init__(self, out):
 		self.out = out
@@ -78,16 +78,13 @@ class VMWriter:
 		}
 
 	def writePush(self, segment, index):
-		if segment not in _SEGMENTS:
-			raise ValueError("Illegal segment: %s" % segment)
 		self.out.write("push %s %s\n" % (_SEGMENTS[segment], index))
 
 	def writePop(self, segment, index):
-		if segment not in _SEGMENTS:
-			raise ValueError("Illegal segment: %s" % segment)
 		self.out.write("pop %s %s\n" % (_SEGMENTS[segment], index))
 
 	def writeArithmetic(self, command):
+		command = _SYM_TRANSLATE.get(command, command)
 		self.out.write("%s\n" % (command))
 
 	def writeLabel(self, label):
@@ -184,4 +181,4 @@ def is_object_call(root):
 	return len(root) >= 6 and root[0].tag == ELEMENTS.IDENTIFIER and root[1].tag == ELEMENTS.SYMBOL and root[2].tag == ELEMENTS.IDENTIFIER
 
 def get_var_info(root):
-	return _SEGMENT_MAP[int(root.get("kind"))], root.get("index")
+	return _SEG_TRANSLATE[int(root.get("kind"))], root.get("index")
