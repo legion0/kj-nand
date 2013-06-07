@@ -1,3 +1,8 @@
+
+
+from compilation import ELEMENTS
+from symbol_table import KINDS
+
 class SEGMENT:
 	CONST = 1
 	ARG = 2
@@ -10,14 +15,24 @@ class SEGMENT:
 	ALL = (CONST, ARG, LOCAL, STATIC, THIS, THAT, POINTER, TEMP)
 
 _SEGMENTS = {
-	SEGMENT.CONST: None,
-	SEGMENT.ARG: None,
-	SEGMENT.LOCAL: None,
-	SEGMENT.STATIC: None,
-	SEGMENT.THIS: None,
-	SEGMENT.THAT: None,
-	SEGMENT.POINTER: None,
-	SEGMENT.TEMP: None,
+	SEGMENT.CONST: "constant",
+	SEGMENT.ARG: "argument",
+	SEGMENT.LOCAL: "local",
+	SEGMENT.STATIC: "static",
+	SEGMENT.THIS: "this",
+	SEGMENT.THAT: "that",
+	SEGMENT.POINTER: "pointer",
+	SEGMENT.TEMP: "temp",
+}
+
+_SYM_TRANSLATE = {
+	"+": "add",
+	"*": "call Math.multiply 2",
+	"-": "sub",
+}
+_SYM_TRANSLATE_UNARY = {
+	"-": "neg",
+	"~": "not",
 }
 
 class COMMAND:
@@ -33,7 +48,7 @@ class COMMAND:
 	ALL = (ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT)
 
 _COMMANDS = {
-	COMMAND.ADD: None,
+	COMMAND.ADD: "None",
 	COMMAND.SUB: None,
 	COMMAND.NEG: None,
 	COMMAND.EQ: None,
@@ -42,6 +57,13 @@ _COMMANDS = {
 	COMMAND.AND: None,
 	COMMAND.OR: None,
 	COMMAND.NOT: None,
+}
+
+_SEGMENT_MAP = {
+	KINDS.ARG: SEGMENT.ARG,
+	KINDS.FIELD: SEGMENT.THIS,
+	KINDS.STATIC: SEGMENT.STATIC,
+	KINDS.VAR: SEGMENT.LOCAL,
 }
 
 class VMWriter:
@@ -56,10 +78,14 @@ class VMWriter:
 		}
 
 	def writePush(self, segment, index):
-		self.out.write("push %s %s\n" % (segment, index))
+		if segment not in _SEGMENTS:
+			raise ValueError("Illegal segment: %s" % segment)
+		self.out.write("push %s %s\n" % (_SEGMENTS[segment], index))
 
 	def writePop(self, segment, index):
-		self.out.write("pop %s %s\n" % (segment, index))
+		if segment not in _SEGMENTS:
+			raise ValueError("Illegal segment: %s" % segment)
+		self.out.write("pop %s %s\n" % (_SEGMENTS[segment], index))
 
 	def writeArithmetic(self, command):
 		self.out.write("%s\n" % (command))
@@ -85,35 +111,77 @@ class VMWriter:
 	def writeXml(self, root):
 		self.className = root[1].text
 		for element in root:
-			if element.tag == "subroutineDec":
+			if element.tag == ELEMENTS.SUBROUTINEDEC:
 				self._write_subroutineDec(element)
 
 	def _write_subroutineDec(self, root):
 		name = root[2].text
-		body = root.find("subroutineBody")
-		nLocals = len(body.findall("varDec"))
+		body = root.find(ELEMENTS.SUBROUTINEBODY)
+		nLocals = 0
+		for local in body.findall(ELEMENTS.VAR_DEC):
+			nLocals += (len(local) - 2) / 2
 		self.writeFunction("%s.%s" % (self.className, name), nLocals)
-		self._write_statements(body.find("statements"))
+		self._write_statements(body.find(ELEMENTS.STATEMENTS))
 
 	def _write_statements(self, root):
 		for element in root:
 			self.statement_writers[element.tag](element)
-	
+
 	def _write_letStatement(self, root):
-		pass
+		self._write_expression(root.find(ELEMENTS.EXPRESSION))
+		self.writePop(*get_var_info(root[1]))
 	def _write_ifStatement(self, root):
 		pass
 	def _write_whileStatement(self, root):
 		pass
 	def _write_doStatement(self, root):
-		pass
+		expList = root.find(ELEMENTS.EXPRESSION_LIST)
+		for exp in expList.findall(ELEMENTS.EXPRESSION):
+			self._write_expression(exp)
+		fName = "%s.%s" % (root[1].text, root[3].text)
+		nArgs = len(expList.findall(ELEMENTS.EXPRESSION))
+		self.writeCall(fName, nArgs)
 	def _write_returnStatement(self, root):
-		pass
-			
-			
-			
-			
-			
-			
-			
-			
+		if len(root) == 2:
+			self.writeReturn()
+
+	def _write_expression(self, root):
+		self._write_term(root[0])
+		for i in xrange(2, len(root), 2):
+			self._write_term(root[i])
+			self._write_symbol(root[i-1])
+
+	def _write_term(self, root):
+		if root[0].tag == ELEMENTS.INTEGER_CONSTANT:
+			self.writePush(SEGMENT.CONST, root[0].text)
+		elif root[0].text in _SYM_TRANSLATE_UNARY:
+			self._write_term(root[1])
+			self.writeArithmetic(_SYM_TRANSLATE_UNARY[root[0].text])
+		elif is_object_call(root):
+			expList = root.find(ELEMENTS.EXPRESSION_LIST)
+			self._write_expression_list(expList)
+			fName = "%s.%s" % (root[0].text, root[2].text)
+			nArgs = len(expList.findall(ELEMENTS.EXPRESSION))
+			self.writeCall(fName, nArgs)
+		elif root[0].text == "(":
+			self._write_expression(root[1])
+		elif len(root) == 1 and root[0].tag == ELEMENTS.IDENTIFIER:
+			self.writePush(*get_var_info(root[0]))
+		elif len(root) == 1 and root[0].tag == ELEMENTS.KEYWORD and root[0].text in ("true", "false"):
+			if root[0].text == "true":
+				self.writePush(SEGMENT.CONST, "0")
+			else:
+				self.writePush(SEGMENT.CONST, "1")
+				self.writeArithmetic("neg")
+	def _write_expression_list(self, root):
+		for element in root.findall(ELEMENTS.EXPRESSION):
+			self._write_expression(element)
+
+	def _write_symbol(self, root):
+		self.writeArithmetic(_SYM_TRANSLATE[root.text])
+
+def is_object_call(root):
+	return len(root) >= 6 and root[0].tag == ELEMENTS.IDENTIFIER and root[1].tag == ELEMENTS.SYMBOL and root[2].tag == ELEMENTS.IDENTIFIER
+
+def get_var_info(root):
+	return _SEGMENT_MAP[int(root.get("kind"))], root.get("index")

@@ -27,7 +27,7 @@ def main(argv):
 		baseName, _ = os.path.splitext(fileName)
 		with open(filePath) as f:
 			source = f.read()
-		outFileName = "%s.xml" % (baseName)
+		outFileName = "%s.vm" % (baseName)
 		outFilePath = os.path.join(dirPath, outFileName)
 		with open(outFilePath, "w") as f:
 			compiler = CompilationEngine(source, f)
@@ -57,9 +57,9 @@ def formatSyntaxError(ex):
 	return SYNTAX_ERROR_TEMPLATE.replace("__FILE__", ex.filename).replace("__LINENO__", str(ex.lineno)).replace("__LINE__", ex.text.rstrip()).replace("__SPACES__", " " * ex.offset).replace("__MSG__", ex.msg)
 
 if __name__ == "__main__":
-# 	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\ArrayTest"])
-  	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\ExpressionlessSquare"])
-# 	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\ExpressionlessSquare\SquareGame.jack"])
-#  	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\10\Square"])
-# 	main([r"C:\Users\Yotam\Documents\Studies\NAND\projects\11\Seven"])
+# 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ArrayTest"])
+#  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ExpressionlessSquare"])
+# 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ExpressionlessSquare\SquareGame.jack"])
+  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\ConvertToBin"])
+# 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Seven"])
 # 	main(sys.argv[1:])
