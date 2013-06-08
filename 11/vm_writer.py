@@ -10,14 +10,31 @@ class SEGMENT:
 	ALL = (CONST, ARG, LOCAL, STATIC, THIS, THAT, POINTER, TEMP)
 
 _SEGMENTS = {
-	SEGMENT.CONST: None,
-	SEGMENT.ARG: None,
-	SEGMENT.LOCAL: None,
-	SEGMENT.STATIC: None,
-	SEGMENT.THIS: None,
-	SEGMENT.THAT: None,
-	SEGMENT.POINTER: None,
-	SEGMENT.TEMP: None,
+	SEGMENT.CONST: "constant",
+	SEGMENT.ARG: "argument",
+	SEGMENT.LOCAL: "local",
+	SEGMENT.STATIC: "static",
+	SEGMENT.THIS: "this",
+	SEGMENT.THAT: "that",
+	SEGMENT.POINTER: "pointer",
+	SEGMENT.TEMP: "temp",
+}
+
+_SYM_TRANSLATE = {
+	"+": "add",
+	"*": "call Math.multiply 2",
+	"-": "sub",
+	"/": "call Math.divide 2",
+	"&": "and",
+	"|": "or",
+	"<": "lt",
+	">": "gt",
+	"=": "eq",
+}
+
+_SYM_TRANSLATE_UNARY = {
+	"-": "neg",
+	"~": "not",
 }
 
 class COMMAND:
@@ -32,36 +49,22 @@ class COMMAND:
 	NOT = 9
 	ALL = (ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT)
 
-_COMMANDS = {
-	COMMAND.ADD: None,
-	COMMAND.SUB: None,
-	COMMAND.NEG: None,
-	COMMAND.EQ: None,
-	COMMAND.GT: None,
-	COMMAND.LT: None,
-	COMMAND.AND: None,
-	COMMAND.OR: None,
-	COMMAND.NOT: None,
-}
-
 class VMWriter:
 	def __init__(self, out):
 		self.out = out
-		self.statement_writers = {
-			"letStatement": self._write_letStatement,
-			"ifStatement": self._write_ifStatement,
-			"whileStatement": self._write_whileStatement,
-			"doStatement": self._write_doStatement,
-			"returnStatement": self._write_returnStatement,
-		}
 
 	def writePush(self, segment, index):
-		self.out.write("push %s %s\n" % (segment, index))
+		self.out.write("push %s %s\n" % (_SEGMENTS[segment], index))
 
 	def writePop(self, segment, index):
-		self.out.write("pop %s %s\n" % (segment, index))
+		self.out.write("pop %s %s\n" % (_SEGMENTS[segment], index))
 
 	def writeArithmetic(self, command):
+		command = _SYM_TRANSLATE.get(command, command)
+		self.out.write("%s\n" % (command))
+
+	def writeArithmeticUnary(self, command):
+		command = _SYM_TRANSLATE_UNARY.get(command, command)
 		self.out.write("%s\n" % (command))
 
 	def writeLabel(self, label):
@@ -81,39 +84,3 @@ class VMWriter:
 
 	def writeReturn(self):
 		self.out.write("return\n")
-
-	def writeXml(self, root):
-		self.className = root[1].text
-		for element in root:
-			if element.tag == "subroutineDec":
-				self._write_subroutineDec(element)
-
-	def _write_subroutineDec(self, root):
-		name = root[2].text
-		body = root.find("subroutineBody")
-		nLocals = len(body.findall("varDec"))
-		self.writeFunction("%s.%s" % (self.className, name), nLocals)
-		self._write_statements(body.find("statements"))
-
-	def _write_statements(self, root):
-		for element in root:
-			self.statement_writers[element.tag](element)
-	
-	def _write_letStatement(self, root):
-		pass
-	def _write_ifStatement(self, root):
-		pass
-	def _write_whileStatement(self, root):
-		pass
-	def _write_doStatement(self, root):
-		pass
-	def _write_returnStatement(self, root):
-		pass
-			
-			
-			
-			
-			
-			
-			
-			
