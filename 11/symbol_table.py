@@ -2,15 +2,20 @@
 import json
 
 class SymbolTable:
-	
+
 	def __init__(self):
 		self.big_table = {}
-		self.big_index = 0
-		self.startSubroutine()
-
-	def startSubroutine(self):
 		self.small_table = {}
-		self.small_index = 0
+		self.big_index = _EMPTY_INDEX.copy()
+		self.small_index = _EMPTY_INDEX.copy()
+
+	def startSubroutine(self, className, methodName):
+		print "@", className, ".", methodName
+		self.small_table = {}
+		self.small_index = _EMPTY_INDEX.copy()
+#		if className is not None:
+#			if methodName not in ("main", "new"):
+#				self.define("this", className, KINDS.ARG)
 
 	def define(self, name, type_, kind):
 		if kind not in KINDS.ALL:
@@ -18,21 +23,23 @@ class SymbolTable:
 		index = None
 		if kind in KINDS.BIG_SCOPE:
 			if name not in self.big_table:
-				self.big_table[name] = (type_, kind, self.big_index)
-				index = self.big_index
-				self.big_index+=1
+				index = self.big_index[kind]
+				self.big_table[name] = (type_, kind, index)
+				self.big_index[kind] = index + 1
 		elif kind in KINDS.SMALL_SCOPE:
 			if name not in self.small_table:
-				self.small_table[name] = (type_, kind, self.small_index)
-				index = self.small_index
-				self.small_index+=1
+				index = self.small_index[kind]
+				self.small_table[name] = (type_, kind, index)
+				self.small_index[kind] = index + 1
+		print name, type_, kind, index
 		return index
 
 	def varCount(self, kind):
 		if kind in KINDS.BIG_SCOPE:
-			return len([1 for x in self.big_table if x[1] == kind])
+#			print self.big_table
+			return len([1 for _, x in self.big_table.viewitems() if x[1] == kind])
 		elif kind in KINDS.SMALL_SCOPE:
-			return len([1 for x in self.small_table if x[1] == kind])
+			return len([1 for _, x in self.small_table.viewitems() if x[1] == kind])
 		return 0
 
 	def kindOf(self, name):
@@ -62,10 +69,17 @@ class SymbolTable:
 		pass
 
 class KINDS:
-	STATIC = 1
-	FIELD = 2
-	ARG = 3
-	VAR = 4
+	STATIC = "STATIC"
+	FIELD = "FIELD"
+	ARG = "ARG"
+	VAR = "VAR"
 	ALL = (STATIC, FIELD, ARG, VAR)
 	SMALL_SCOPE = (VAR, ARG)
 	BIG_SCOPE = (STATIC, FIELD)
+
+_EMPTY_INDEX = {
+	KINDS.STATIC: 0,
+	KINDS.FIELD: 0,
+	KINDS.ARG: 0,
+	KINDS.VAR: 0,
+}

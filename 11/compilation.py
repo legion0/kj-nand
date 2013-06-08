@@ -55,10 +55,10 @@ class _KEYWORDS:
 	CONSTANTS = (CONSTANT_FALSE, CONSTANT_NULL, CONSTANT_THIS, CONSTANT_TRUE)
 
 _KW_CONT_WRITE = {
-	_KEYWORDS.CONSTANT_TRUE: lambda writer: writer.writePush(SEGMENT.CONST, "0"),
-	_KEYWORDS.CONSTANT_FALSE: lambda writer: writer.writePush(SEGMENT.CONST, "1") or  writer.writeArithmetic("neg"),
+	_KEYWORDS.CONSTANT_TRUE: lambda writer: writer.writePush(SEGMENT.CONST, "0") or  writer.writeArithmetic("not"),
+	_KEYWORDS.CONSTANT_FALSE: lambda writer: writer.writePush(SEGMENT.CONST, "0"),
 	_KEYWORDS.CONSTANT_NULL: lambda writer: writer.writePush(SEGMENT.CONST, "0"),
-	_KEYWORDS.CONSTANT_THIS: lambda writer: writer.writePush(SEGMENT.THIS, "0"),
+	_KEYWORDS.CONSTANT_THIS: lambda writer: writer.writePush(SEGMENT.POINTER, "0"),
 }
 
 class _SYMBOLS:
@@ -90,6 +90,9 @@ class _CLASSVARDEC:
 	VAR_TYPES = ("int", "char", "boolean")
 
 class _SUBROUTINEDEC:
+	CONSTRUCTOR = "constructor"
+	FUNCTION = "function"
+	METHOD = "method"
 	TYPES = ("constructor", "function", "method")
 	RETURN_TYPES = _CLASSVARDEC.VAR_TYPES[:] + ("void",)
 
@@ -125,7 +128,7 @@ class CompilationEngine:
 		root = self._compileClass()
 #		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
 #		self.writer.writeXml(root)
-		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
+#		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
 
 	def _compileClass(self):
 		classE = Element(ELEMENTS.CLASS)
@@ -150,16 +153,18 @@ class CompilationEngine:
 
 	def _compileSubroutine(self, parent):
 		while self.nextTok and self.nextTok.type == tokenizor.KEYWORD and self.nextTok.value in _SUBROUTINEDEC.TYPES:
-			self._symbol_table.startSubroutine()
 			subroutineDecE = Element(ELEMENTS.SUBROUTINEDEC)
-			self._readKeyword(subroutineDecE)
+			function_type = self._readKeyword(subroutineDecE)
 			self._readReturnType(subroutineDecE)
 			self.methodName = self._readIdentifier(subroutineDecE)
+			self._symbol_table.startSubroutine(self.className, self.methodName)
+			if function_type == _SUBROUTINEDEC.METHOD:
+				self._symbol_table.define("this", self.className, SYM_KINDS.ARG)
 			self._uid = -1
 			self._readSymbol(subroutineDecE, _SYMBOLS.PARENTHESES_OPEN)
 			self._compileParameters(subroutineDecE)
 			self._readSymbol(subroutineDecE, _SYMBOLS.PARENTHESES_CLOSE)
-			self._compileSubroutineBody(subroutineDecE)
+			self._compileSubroutineBody(subroutineDecE, function_type)
 			parent.append(subroutineDecE)
 
 	def _gen_label(self, type_):
@@ -170,12 +175,21 @@ class CompilationEngine:
 		self._uid += 1
 		return ["%s.%s.%s.%d" % (self.className, self.methodName, part, self._uid) for part in parts]
 
-	def _compileSubroutineBody(self, parent):
+	def _compileSubroutineBody(self, parent, function_type):
 		bodyE = Element(ELEMENTS.SUBROUTINEBODY)
 		self._readSymbol(bodyE, _SYMBOLS.BRACKET_CURLY_OPEN)
 		nArgs = self._compileVarDec(bodyE)
-		fName = "%s.%s" % (self.className, parent[2].text)
-		self.writer.writeFunction(fName, nArgs)
+		function_name = parent[2].text
+		function_full_name = "%s.%s" % (self.className, function_name)
+		self.writer.writeFunction(function_full_name, nArgs)
+		if function_type == _SUBROUTINEDEC.CONSTRUCTOR:
+			field_count = self._symbol_table.varCount(SYM_KINDS.FIELD)
+			self.writer.writePush(SEGMENT.CONST, field_count)
+			self.writer.writeCall("Memory.alloc", 1)
+			self.writer.writePop(SEGMENT.POINTER, 0)
+		elif function_type == _SUBROUTINEDEC.METHOD:
+			self.writer.writePush(SEGMENT.ARG, 0)
+			self.writer.writePop(SEGMENT.POINTER, 0)
 		self._compileStatements(bodyE)
 		self._readSymbol(bodyE, _SYMBOLS.BRACKET_CURLY_CLOSE)
 		parent.append(bodyE)
@@ -223,6 +237,7 @@ class CompilationEngine:
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_OPEN)
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.PARENTHESES_CLOSE)
+				self.writer.writeArithmetic("not")
 				self.writer.writeIf(label_end)
 				self._readSymbol(statementE, _SYMBOLS.BRACKET_CURLY_OPEN)
 				self._compileStatements(statementE)
@@ -237,6 +252,8 @@ class CompilationEngine:
 				self._readKeyword(statementE)
 				if not (self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == _SYMBOLS.SEMI_COLON):
 					self._compileExpression(statementE)
+				else:
+					self.writer.writePush(SEGMENT.CONST, 0)
 				self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
 				self.writer.writeReturn()
 				statementsE.append(statementE)
@@ -272,11 +289,24 @@ class CompilationEngine:
 		statementE = Element(ELEMENTS.STATEMENT_DO)
 		self._readKeyword(statementE, _STATEMENTS.DO)
 		identifier = self._readIdentifier(statementE)
+		nArgs = 0
 		if self._readSymbolOptional(statementE, _SYMBOLS.DOT):
-			identifier = "%s.%s" % (identifier, self._readIdentifier(statementE))
-		nArgs = self._compileExpressionList(statementE)
+			type_ = self._symbol_table.typeOf(identifier)
+			if type_:
+				segment, index = self._identifier_data(identifier)
+				self.writer.writePush(segment, index)
+				nArgs += 1
+				identifier = "%s.%s" % (type_, self._readIdentifier(statementE))
+			else:
+				identifier = "%s.%s" % (identifier, self._readIdentifier(statementE))
+		else:
+			identifier = "%s.%s" % (self.className, identifier)
+			self.writer.writePush(SEGMENT.POINTER, 0)
+			nArgs += 1
+		nArgs += self._compileExpressionList(statementE)
 		self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
 		self.writer.writeCall(identifier, nArgs)
+		self.writer.writePop(SEGMENT.TEMP, 0)
 		parent.append(statementE)
 
 	def _compileVarDec(self, parent):
@@ -414,6 +444,7 @@ class CompilationEngine:
 		if expected is not None:
 			self._assertToken(self.tok, expected, value_=expected)
 		parent.append(_leafElement(ELEMENTS.KEYWORD, self.tok.value))
+		return self.tok.value
 
 	def _readSymbolOptional(self, parent, expected):
 		if self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == expected:
