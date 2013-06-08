@@ -1,6 +1,3 @@
-# TODO: remove this
-import json
-
 class SymbolTable:
 
 	def __init__(self):
@@ -10,12 +7,8 @@ class SymbolTable:
 		self.small_index = _EMPTY_INDEX.copy()
 
 	def startSubroutine(self, className, methodName):
-		print "@", className, ".", methodName
 		self.small_table = {}
 		self.small_index = _EMPTY_INDEX.copy()
-#		if className is not None:
-#			if methodName not in ("main", "new"):
-#				self.define("this", className, KINDS.ARG)
 
 	def define(self, name, type_, kind):
 		if kind not in KINDS.ALL:
@@ -31,12 +24,10 @@ class SymbolTable:
 				index = self.small_index[kind]
 				self.small_table[name] = (type_, kind, index)
 				self.small_index[kind] = index + 1
-		print name, type_, kind, index
 		return index
 
 	def varCount(self, kind):
 		if kind in KINDS.BIG_SCOPE:
-#			print self.big_table
 			return len([1 for _, x in self.big_table.viewitems() if x[1] == kind])
 		elif kind in KINDS.SMALL_SCOPE:
 			return len([1 for _, x in self.small_table.viewitems() if x[1] == kind])
@@ -62,11 +53,6 @@ class SymbolTable:
 		elif name in self.small_table:
 			return self.small_table[name][2]
 		return None
-
-	def dump(self): # TODO: remove this
- 		print json.dumps(self.big_table, indent=4)
- 		print json.dumps(self.small_table, indent=4)
-		pass
 
 class KINDS:
 	STATIC = "STATIC"

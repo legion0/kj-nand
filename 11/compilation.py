@@ -1,3 +1,10 @@
+from xml.etree.ElementTree import Element
+
+import tokenizor
+from symbol_table import SymbolTable, KINDS as SYM_KINDS
+from vm_writer import VMWriter, SEGMENT
+from scanner import Lookahead
+
 class ELEMENTS:
 	CLASS = "class"
 	KEYWORD = "keyword"
@@ -21,29 +28,12 @@ class ELEMENTS:
 	KEYWORD_CONSTANT = "keywordConstant"
 	TERM = "term"
 
-_SYM_TRANSLATE_UNARY = {
-	"-": "neg",
-	"~": "not",
-}
-
-from xml.etree.ElementTree import Element, tostring
-from xml.dom.minidom import parseString, Document
-from collections import namedtuple
-
-import tokenizor
-from tokenizor import newTokenizor
-from symbol_table import SymbolTable, KINDS as SYM_KINDS
-from vm_writer import VMWriter, SEGMENT
-
 _SEG_TRANSLATE = {
 	SYM_KINDS.STATIC: SEGMENT.STATIC,
 	SYM_KINDS.FIELD: SEGMENT.THIS,
 	SYM_KINDS.ARG: SEGMENT.ARG,
 	SYM_KINDS.VAR: SEGMENT.LOCAL,
 }
-
-#TODO: remove
-import json
 
 class _KEYWORDS:
 	VAR = "var"
@@ -74,16 +64,6 @@ class _SYMBOLS:
 	DOT = "."
 	OPERATORS = ("+", "-", "*", "/", "&", "|", "<", ">", "=")
 	UNARY_OPARTORS = ("-", "~")
-
-_SYM_ART_MAP = {
-	"+": "ADD",
-	"+": "ADD",
-	"+": "ADD",
-	"+": "ADD",
-	"+": "ADD",
-	"+": "ADD",
-	"+": "ADD",
-}
 
 class _CLASSVARDEC:
 	FIELD_TYPES = ("static", "field")
@@ -120,15 +100,12 @@ class CompilationEngine:
 		self.src = source
 		self.dst = destination
 		self.writer = VMWriter(destination)
-		self.iter = newTokenizor(self.src)
-		self.doc = Document()
+		self.iter = Lookahead(tokenizor.newTokenizor(self.src))
 		self._symbol_table = SymbolTable()
 
 	def compile(self):
 		root = self._compileClass()
-#		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
-#		self.writer.writeXml(root)
-#		parseString(tostring(root)).documentElement.writexml(self.dst, addindent="\t", newl="\n")
+		return root
 
 	def _compileClass(self):
 		classE = Element(ELEMENTS.CLASS)
@@ -302,7 +279,6 @@ class CompilationEngine:
 		nArgs = 0
 		if self._readSymbolOptional(statementE, _SYMBOLS.DOT):
 			type_ = self._symbol_table.typeOf(identifier)
-#			print "\t"*10, identifier, type_
 			if type_:
 				segment, index = self._identifier_data(identifier)
 				self.writer.writePush(segment, index)
@@ -395,7 +371,6 @@ class CompilationEngine:
 				self.writer.writeCall(identifier, nArgs)
 			else:
 				self.writer.writePush(*self._identifier_data(identifier))
-#				exit(0)
 		elif self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_OPEN:
 			self.next()
 			termE.append(_leafElement(ELEMENTS.SYMBOL, self.tok.value))
@@ -403,10 +378,10 @@ class CompilationEngine:
 			self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
 		elif self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value in _SYMBOLS.UNARY_OPARTORS:
 			self.next()
-			sym = _SYM_TRANSLATE_UNARY[self.tok.value]
+			sym = self.tok.value
 			termE.append(_leafElement(ELEMENTS.SYMBOL, self.tok.value))
 			self._readTerm(termE)
-			self.writer.writeArithmetic(sym)
+			self.writer.writeArithmeticUnary(sym)
 		else:
 			raise self._syntaxError("Unexpected %s." % self.tok.value)
 		parent.append(termE)
@@ -419,14 +394,14 @@ class CompilationEngine:
 		self._assertToken(self.tok, ELEMENTS.IDENTIFIER, type_=tokenizor.IDENTIFIER)
 		name = self.tok.value
 		element = _leafElement(ELEMENTS.IDENTIFIER, name)
-		type_ = None
+		type_ = self._symbol_table.typeOf(name)
 		kind = None
 		index = None
-		if self._symbol_table.typeOf(name) is None:
+		if type_ is None:
 			if parent.tag in (ELEMENTS.CLASSVARDEC, ELEMENTS.VAR_DEC) and len(parent) > 1:
 				type_ = parent[1].text
 				kind = _SYM_KIND_MAP[parent[0].text]
-			elif parent.tag == ELEMENTS.PARAM_LIST:
+			elif parent.tag == ELEMENTS.PARAM_LIST and len(parent) > 0:
 				type_ = parent[-1].text
 				kind = SYM_KINDS.ARG
 			if kind is not None:
@@ -491,8 +466,6 @@ class CompilationEngine:
 	def next(self):
 		self.tok = self.iter.next()
 		self.nextTok = self.iter.lookahead()
-#		print self.tok
-#		print "@", self.nextTok
 
 	def _assertToken(self, tok, expected_str, type_ = None, value_ = None):
 		if (type_ != None and tok.type != type_) or (value_ != None and tok.value != value_):

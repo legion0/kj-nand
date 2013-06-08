@@ -2,6 +2,7 @@ import re
 from collections import namedtuple
 
 NamedPattern = namedtuple("NamedPattern", ("name", "pattern", "flags"))
+Token = namedtuple("Token", ["type", "value", "srow", "scol", "erow", "ecol", "line"])
 
 def newScanner(patterns):
     return Scanner(patterns)
@@ -35,19 +36,22 @@ class Iterator:
 
     def next(self):
         tok = None
-        for pattern in self.patterns:
-            match = pattern.pattern.match(self.input, self.pos)
-            if match:
-                self._updatePos(match)
-                if pattern.name == JUNK_PATTERN_ID:
-                    return self.next()
-                if pattern.pattern.groups < 2:
-                    toktext = match.group(pattern.pattern.groups)
-                else:
-                    toktext = match.groups()
-                tok = (pattern.name, toktext, (self.srow, self.scol), (self.erow, self.ecol), self.line)
-#                print tok, self.pos, self.eofPos
-                break
+        restart_patterns = True
+        while restart_patterns:
+            restart_patterns = False
+            for pattern in self.patterns:
+                match = pattern.pattern.match(self.input, self.pos)
+                if match:
+                    self._updatePos(match)
+                    if pattern.name == JUNK_PATTERN_ID:
+                        restart_patterns = True
+                        break
+                    if pattern.pattern.groups < 2:
+                        toktext = match.group(pattern.pattern.groups)
+                    else:
+                        toktext = match.groups()
+                    tok = Token(pattern.name, toktext, self.srow, self.scol, self.erow, self.ecol, self.line)
+                    break
         if tok is None:
             if self.pos < self.eofPos:
                 raise SyntaxError("Unknown expression", (None, self.srow, self.scol, self.line))

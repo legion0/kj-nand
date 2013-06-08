@@ -6,7 +6,7 @@ USAGE_MSG = "USAGE: JackCompiler <source>"
 
 def main(argv):
 	if len(argv) != 1:
-		die(USAGE_MSG)
+		_die(USAGE_MSG)
 	filePath = argv[0]
 	fileList = []
 	if os.path.isdir(filePath):
@@ -22,7 +22,6 @@ def main(argv):
 		dirPath, fileName = os.path.split(filePath)
 		fileList.append(fileName)
 	for fileName in fileList:
-# 		print fileName
 		filePath = os.path.join(dirPath, fileName)
 		baseName, _ = os.path.splitext(fileName)
 		with open(filePath) as f:
@@ -31,13 +30,13 @@ def main(argv):
 		outFilePath = os.path.join(dirPath, outFileName)
 		with open(outFilePath, "w") as f:
 			compiler = CompilationEngine(source, f)
-# 			try:
-			compiler.compile()
-# 			except SyntaxError as ex:
-# 				ex.filename = fileName
-# 				die(ex)
+			try:
+				compiler.compile()
+			except SyntaxError as ex:
+				ex.filename = fileName
+				_die(ex)
 
-def die(ex):
+def _die(ex):
 	if isinstance(ex, basestring):
 		print >> sys.stderr, ex
 	elif isinstance(ex, SyntaxError):
@@ -48,23 +47,13 @@ def die(ex):
 		print >> sys.stderr, "ERROR: UNKNOWN."
 	exit(-1)
 
-SYNTAX_ERROR_TEMPLATE = """File "__FILE__", line __LINENO__
+_SYNTAX_ERROR_TEMPLATE = """File "__FILE__", line __LINENO__
 __LINE__
 __SPACES__^
 SyntaxError: __MSG__"""
 
 def formatSyntaxError(ex):
-	return SYNTAX_ERROR_TEMPLATE.replace("__FILE__", ex.filename).replace("__LINENO__", str(ex.lineno)).replace("__LINE__", ex.text.rstrip()).replace("__SPACES__", " " * ex.offset).replace("__MSG__", ex.msg)
+	return _SYNTAX_ERROR_TEMPLATE.replace("__FILE__", ex.filename).replace("__LINENO__", str(ex.lineno)).replace("__LINE__", ex.text.rstrip()).replace("__SPACES__", " " * ex.offset).replace("__MSG__", ex.msg)
 
 if __name__ == "__main__":
-# 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ArrayTest"])
-#  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ExpressionlessSquare"])
-# 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\10\ExpressionlessSquare\SquareGame.jack"])
-
-# 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Seven"])
-#  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\ConvertToBin"])
-#	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Square"])
-#	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Average"])
-#	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Pong"])
-	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Pong\PongGame.jack"])
-# 	main(sys.argv[1:])
+	main(sys.argv[1:])
