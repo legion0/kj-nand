@@ -201,14 +201,24 @@ class CompilationEngine:
 				statementE = Element(ELEMENTS.STATEMENT_LET)
 				self._readKeyword(statementE)
 				identifier = self._readIdentifier(statementE)
+				is_array = False
 				if self._readSymbolOptional(statementE, _SYMBOLS.BRACKET_OPEN):
+					is_array = True
 					self._compileExpression(statementE)
+					self.writer.writePush(*self._identifier_data(identifier))
+					self.writer.writeArithmetic("add")
 					self._readSymbol(statementE, _SYMBOLS.BRACKET_CLOSE)
 				self._readSymbol(statementE, _SYMBOLS.EQUAL)
 				self._compileExpression(statementE)
 				self._readSymbol(statementE, _SYMBOLS.SEMI_COLON)
+				if is_array:
+					self.writer.writePop(SEGMENT.TEMP, 0)
+					self.writer.writePop(SEGMENT.POINTER, 1)
+					self.writer.writePush(SEGMENT.TEMP, 0)
+					self.writer.writePop(SEGMENT.THAT, 0)
+				else:
+					self.writer.writePop(*self._identifier_data(identifier))
 				statementsE.append(statementE)
-				self.writer.writePop(*self._identifier_data(identifier))
 			elif self.nextTok.value == _STATEMENTS.IF:
 				label_else, label_end = self._gen_labels("if.else", "if.end")
 				statementE = Element(ELEMENTS.STATEMENT_IF)
@@ -347,6 +357,12 @@ class CompilationEngine:
 		elif self.nextTok.type == tokenizor.STRING:
 			self.next()
 			termE.append(_leafElement(ELEMENTS.STRING_CONSTANT, self.tok.value))
+			string_value = self.tok.value
+			self.writer.writePush(SEGMENT.CONST, len(string_value))
+			self.writer.writeCall("String.new", 1)
+			for char in string_value:
+				self.writer.writePush(SEGMENT.CONST, ord(char))
+				self.writer.writeCall("String.appendChar", 2)
 		elif self.nextTok.type == tokenizor.KEYWORD and self.nextTok.value in _KEYWORDS.CONSTANTS:
 			self.next()
 			termE.append(_leafElement(ELEMENTS.KEYWORD, self.tok.value))
@@ -356,6 +372,10 @@ class CompilationEngine:
 			nArgs = 0
 			if self._readSymbolOptional(termE, _SYMBOLS.BRACKET_OPEN):
 				self._compileExpression(termE)
+				self.writer.writePush(*self._identifier_data(identifier))
+				self.writer.writeArithmetic("add")
+				self.writer.writePop(SEGMENT.POINTER, 1)
+				self.writer.writePush(SEGMENT.THAT, 0)
 				self._readSymbol(termE, _SYMBOLS.BRACKET_CLOSE)
 			elif self.nextTok.type == tokenizor.SYMBOL and self.nextTok.value == _SYMBOLS.PARENTHESES_OPEN:
 				nArgs = self._compileExpressionList(termE)

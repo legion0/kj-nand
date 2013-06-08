@@ -72,7 +72,7 @@ scanner = newScanner((
 	(KEYWORD, _RE_KEYWORD),
 	(SYMBOL, _RE_SYM),
 	(INTEGER, r"\d+"),
-	(STRING, r"\".*?\""),
+	(STRING, r"\"(.*?)\""),
 	(IDENTIFIER, r"[a-z_][a-z_0-9]*", re.IGNORECASE),
 ))
 

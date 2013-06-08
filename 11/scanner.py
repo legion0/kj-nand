@@ -41,7 +41,10 @@ class Iterator:
                 self._updatePos(match)
                 if pattern.name == JUNK_PATTERN_ID:
                     return self.next()
-                toktext = match.group(0)
+                if pattern.pattern.groups < 2:
+                    toktext = match.group(pattern.pattern.groups)
+                else:
+                    toktext = match.groups()
                 tok = (pattern.name, toktext, (self.srow, self.scol), (self.erow, self.ecol), self.line)
 #                print tok, self.pos, self.eofPos
                 break
