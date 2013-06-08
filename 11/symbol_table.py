@@ -64,8 +64,8 @@ class SymbolTable:
 		return None
 
 	def dump(self): # TODO: remove this
-# 		print json.dumps(self.big_table, indent=4)
-# 		print json.dumps(self.small_table, indent=4)
+ 		print json.dumps(self.big_table, indent=4)
+ 		print json.dumps(self.small_table, indent=4)
 		pass
 
 class KINDS:

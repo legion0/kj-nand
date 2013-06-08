@@ -64,5 +64,7 @@ if __name__ == "__main__":
 # 	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Seven"])
 #  	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\ConvertToBin"])
 #	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Square"])
-	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Average"])
+#	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Average"])
+#	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Pong"])
+	main([r"D:\My Documents\Stud\2012-2013\NAND\workspace\11\Pong\PongGame.jack"])
 # 	main(sys.argv[1:])

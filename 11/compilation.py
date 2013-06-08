@@ -302,6 +302,7 @@ class CompilationEngine:
 		nArgs = 0
 		if self._readSymbolOptional(statementE, _SYMBOLS.DOT):
 			type_ = self._symbol_table.typeOf(identifier)
+#			print "\t"*10, identifier, type_
 			if type_:
 				segment, index = self._identifier_data(identifier)
 				self.writer.writePush(segment, index)
@@ -382,8 +383,15 @@ class CompilationEngine:
 				self._readSymbol(termE, _SYMBOLS.PARENTHESES_CLOSE)
 				self.writer.writeCall(identifier, nArgs)
 			elif self._readSymbolOptional(termE, _SYMBOLS.DOT):
-				identifier = "%s.%s" % (identifier, self._readIdentifier(termE))
-				nArgs = self._compileExpressionList(termE)
+				type_ = self._symbol_table.typeOf(identifier)
+				if type_:
+					segment, index = self._identifier_data(identifier)
+					self.writer.writePush(segment, index)
+					nArgs += 1
+					identifier = "%s.%s" % (type_, self._readIdentifier(termE))
+				else:
+					identifier = "%s.%s" % (identifier, self._readIdentifier(termE))
+				nArgs += self._compileExpressionList(termE)
 				self.writer.writeCall(identifier, nArgs)
 			else:
 				self.writer.writePush(*self._identifier_data(identifier))
