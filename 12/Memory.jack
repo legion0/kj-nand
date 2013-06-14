@@ -8,25 +8,101 @@
  */ 
 class Memory {
 
+	static Memory free_list;
+	static int HEAP_START, HEAP_END;
+	static int NEXT, SIZE, USED, STRUCT_SIZE;
+	static Memory MEMORY_START;
+
     /** Initializes memory parameters. */
     function void init() {
+		let HEAP_START = 2048;
+		let HEAP_END = 16383;
+		let STRUCT_SIZE = 3;
+		let SIZE = -3;
+		let USED = -2;
+		let NEXT = -1;
+		let free_list = HEAP_START + STRUCT_SIZE;
+		let free_list[SIZE] = HEAP_END - HEAP_START - STRUCT_SIZE;
+		let free_list[USED] = false;
+		let free_list[NEXT] = 0;
+		return;
     }
 
     /** Returns the value of the main memory at this address. */
     function int peek(int address) {
+		return MEMORY_START[address];
     }
 
     /** Sets the value of the main memory at this address
      *  to the given value. */
     function void poke(int address, int value) {
+		let MEMORY_START[address] = value;
+		return;
     }
 
     /** finds and allocates from the heap a memory block of the 
      *  specified size and returns a reference to its base address. */
     function int alloc(int size) {
+		var int current_block, next_block, new_block, block_size, is_used, matching_block;
+		var boolean found_block;
+		let found_block = false;
+		let current_block = free_list;
+		let matching_block = HEAP_END;
+		while (~(found_block | (current_block = 0))) {
+			let block_size = current_block[SIZE];
+			let is_used = current_block[USED];
+			if ((~is_used) & (block_size > size)) {
+				let found_block = true;
+				let matching_block = current_block;
+				let matching_block[USED] = true;
+				let next_block = current_block[NEXT];
+				let new_block = current_block + size + STRUCT_SIZE;
+				if (new_block + STRUCT_SIZE < next_block) { // split block
+					let new_block[SIZE] = next_block - new_block - STRUCT_SIZE;
+					let new_block[USED] = 0;
+					let new_block[NEXT] = next_block;
+					let matching_block[NEXT] = new_block;
+					let matching_block[SIZE] = new_block - matching_block - STRUCT_SIZE;
+				}
+			}
+			let current_block = current_block[NEXT];
+		}
+		return matching_block;
     }
 
     /** De-allocates the given object and frees its space. */
     function void deAlloc(int object) {
+		var int last_block, current_block, next_block, future_block;
+		var boolean found_block;
+		let found_block = false;
+		let current_block = free_list;
+		let last_block = 0;
+		while (~(found_block | (current_block = 0))) {
+			if (current_block = object) {
+				let found_block = true;
+			} else {
+				let last_block = current_block;
+				let current_block = current_block[NEXT];
+			}
+		}
+		if (found_block) {
+			let current_block[USED] = false;
+			let next_block = current_block[NEXT];
+			if ((~(next_block = 0)) & (~next_block[USED])) { // XXX
+				let future_block = next_block[NEXT];
+				if (~(future_block = 0)) {
+					let current_block[SIZE] = future_block - current_block - STRUCT_SIZE;
+					let current_block[NEXT] = future_block;
+				} else {
+					let current_block[SIZE] = HEAP_END - current_block;
+					let current_block[NEXT] = 0;
+				}
+			}
+			if ((~(last_block = 0)) & (~last_block[USED])) { // XXX
+				let last_block[SIZE] = current_block - last_block - STRUCT_SIZE;
+				let last_block[NEXT] = current_block;
+			}
+		}
+		return;
     }    
 }
