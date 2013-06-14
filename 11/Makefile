@@ -9,7 +9,7 @@ JackCompiler: $(SOURCES)
 	chmod +x $@
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(TARGETS) *.pyc
 
 tar:
 	tar -cvf project$(EX).tar $(SOURCES) Makefile README
