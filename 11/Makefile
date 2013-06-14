@@ -5,7 +5,7 @@ TARGETS = JackCompiler
 all: $(TARGETS)
 
 JackCompiler: $(SOURCES)
-	cp -f $< $@
+	cp -f $@.py $@
 	chmod +x $@
 
 clean:

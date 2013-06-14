@@ -63,6 +63,7 @@ my_scanner = newScanner((
 	(JUNK_PATTERN_ID, r"//.*\n"),
 	(JUNK_PATTERN_ID, r"/\*.*?\*/", re.DOTALL),
 	(JUNK_PATTERN_ID, r"\n"),
+	(JUNK_PATTERN_ID, r"\r"),
 	(JUNK_PATTERN_ID, r" "),
 	(KEYWORD, _RE_KEYWORD),
 	(SYMBOL, _RE_SYM),
