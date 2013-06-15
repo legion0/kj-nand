@@ -8,23 +8,34 @@
  */ 
 class Memory {
 
-	static Memory free_list;
+	static int MEMORY_START;
 	static int HEAP_START, HEAP_END;
 	static int NEXT, SIZE, USED, STRUCT_SIZE;
-	static Memory MEMORY_START;
+	static int free_list;
 
     /** Initializes memory parameters. */
     function void init() {
+		var int first_block, last_block;
 		let HEAP_START = 2048;
 		let HEAP_END = 16383;
 		let STRUCT_SIZE = 3;
 		let SIZE = -3;
 		let USED = -2;
 		let NEXT = -1;
-		let free_list = HEAP_START + STRUCT_SIZE;
-		let free_list[SIZE] = HEAP_END - HEAP_START - STRUCT_SIZE;
+		let first_block = HEAP_START + STRUCT_SIZE;
+		let first_block[SIZE] = 0;
+		let first_block[USED] = true;
+		let last_block = HEAP_END + 1;
+		let last_block[SIZE] = 0;
+		let last_block[USED] = true;
+		let last_block[NEXT] = 0;
+
+		let free_list = first_block + STRUCT_SIZE;
+		let free_list[SIZE] = last_block - free_list - STRUCT_SIZE;
 		let free_list[USED] = false;
-		let free_list[NEXT] = 0;
+		let free_list[NEXT] = last_block;
+		let first_block[NEXT] = free_list;
+		let free_list = first_block;
 		return;
     }
 
@@ -47,11 +58,11 @@ class Memory {
 		var boolean found_block;
 		let found_block = false;
 		let current_block = free_list;
-		let matching_block = HEAP_END;
+		let matching_block = 0;
 		while (~(found_block | (current_block = 0))) {
 			let block_size = current_block[SIZE];
 			let is_used = current_block[USED];
-			if ((~is_used) & (block_size > size)) {
+			if (~(is_used | (block_size < size))) {
 				let found_block = true;
 				let matching_block = current_block;
 				let matching_block[USED] = true;
@@ -59,7 +70,7 @@ class Memory {
 				let new_block = current_block + size + STRUCT_SIZE;
 				if (new_block + STRUCT_SIZE < next_block) { // split block
 					let new_block[SIZE] = next_block - new_block - STRUCT_SIZE;
-					let new_block[USED] = 0;
+					let new_block[USED] = false;
 					let new_block[NEXT] = next_block;
 					let matching_block[NEXT] = new_block;
 					let matching_block[SIZE] = new_block - matching_block - STRUCT_SIZE;
@@ -72,37 +83,67 @@ class Memory {
 
     /** De-allocates the given object and frees its space. */
     function void deAlloc(int object) {
-		var int last_block, current_block, next_block, future_block;
-		var boolean found_block;
-		let found_block = false;
+		var int prev_block, current_block, next_block, future_block, tmp_ptr;
 		let current_block = free_list;
-		let last_block = 0;
-		while (~(found_block | (current_block = 0))) {
-			if (current_block = object) {
+		let prev_block = Memory.__prev_block(object);
+		if (prev_block = 0) {
+			return;
+		}
+		let current_block = prev_block[NEXT];
+		if (current_block = 0) {
+			return;
+		}
+		let next_block = current_block[NEXT];
+		if (next_block = 0) {
+			return;
+		}
+		// mark as unused
+		let current_block[USED] = false;
+		// clear block data
+		let tmp_ptr = current_block;
+		while (tmp_ptr + STRUCT_SIZE < next_block) {
+			let tmp_ptr[0] = 0;
+			let tmp_ptr = tmp_ptr + 1;
+		}
+		// defrag
+		if (~(next_block[USED])) {
+			let future_block = next_block[NEXT];
+			let current_block[SIZE] = future_block - current_block - STRUCT_SIZE;
+			let current_block[NEXT] = future_block;
+			// clear block metadata
+			let next_block[SIZE] = 0;
+			let next_block[USED] = 0;
+			let next_block[NEXT] = 0;
+			// update next
+			let next_block = future_block;
+		}
+		if (~(prev_block[USED])) {
+			let prev_block[SIZE] = next_block - prev_block - STRUCT_SIZE;
+			let prev_block[NEXT] = next_block;
+			// clear block metadata
+			let current_block[SIZE] = 0;
+			let current_block[USED] = 0;
+			let current_block[NEXT] = 0;
+		}
+
+		return;
+    }
+
+	function int __prev_block(int object) {
+		var int current_block;
+		var boolean found_block;
+		let current_block = free_list;
+		let found_block = false;
+		while (~(found_block | (current_block = 0) | (current_block > object))) {
+			if (current_block[NEXT] = object) {
 				let found_block = true;
 			} else {
-				let last_block = current_block;
 				let current_block = current_block[NEXT];
 			}
 		}
-		if (found_block) {
-			let current_block[USED] = false;
-			let next_block = current_block[NEXT];
-			if ((~(next_block = 0)) & (~next_block[USED])) { // XXX
-				let future_block = next_block[NEXT];
-				if (~(future_block = 0)) {
-					let current_block[SIZE] = future_block - current_block - STRUCT_SIZE;
-					let current_block[NEXT] = future_block;
-				} else {
-					let current_block[SIZE] = HEAP_END - current_block;
-					let current_block[NEXT] = 0;
-				}
-			}
-			if ((~(last_block = 0)) & (~last_block[USED])) { // XXX
-				let last_block[SIZE] = current_block - last_block - STRUCT_SIZE;
-				let last_block[NEXT] = current_block;
-			}
+		if (~found_block) {
+			return 0;
 		}
-		return;
-    }    
+		return current_block;
+	}
 }
