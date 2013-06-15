@@ -8,33 +8,157 @@
  */
 class Screen {
 
+	static int MAX_X, MAX_Y;
+	static int SCREEN_START, WORD_SIZE, ROW_SIZE;
+	static boolean WHITE, BLACK;
+	static boolean __color;
+
     /** Initializes the Screen. */
     function void init() {
+		let MAX_X = 512;
+		let MAX_Y = 256;
+		let SCREEN_START = 16384;
+		let WORD_SIZE = 16;
+		let ROW_SIZE = MAX_X / WORD_SIZE;
+		let WHITE = false;
+		let BLACK = true;
+		let __color = BLACK;
+		return;
     }
 
     /** Erases the whole screen. */
     function void clearScreen() {
+		do Screen.setColor(WHITE);
+		do Screen.drawRectangle(0, 0, MAX_X - 1, MAX_Y - 1);
+		return;
     }
 
     /** Sets the color to be used in further draw commands
      *  where white = false, black = true. */
     function void setColor(boolean b) {
+		let __color = b;
+		return;
     }
 
     /** Draws the (x, y) pixel. */
     function void drawPixel(int x, int y) {
+		var int byte, bit, new_value, mask;
+		let byte = (y * ROW_SIZE) + (x / WORD_SIZE);
+		let bit = x - ((x / 16) * 16);
+		let new_value = SCREEN_START[byte];
+		let mask = 1;
+		while (bit > 0) {
+			let mask = mask + mask;
+			let bit = bit - 1;
+		}
+		if (__color = BLACK) {
+			let new_value = new_value | mask;
+		} else {
+			let mask = ~mask;
+			let new_value = new_value & mask;
+		}
+		let SCREEN_START[byte] = new_value;
+		return;
     }
 
     /** Draws a line from pixel (x1, y1) to (x2, y2). */
     function void drawLine(int x1, int y1, int x2, int y2) {
+		var int temp, dx, dy, a, b, abs_dx, abs_dy, abs_a, abs_b, sx, sy;
+		var boolean cond;
+		let a = 0;
+		let b = 0;
+		let abs_a = 0;
+		let abs_b = 0;
+		if ((x2 < x1) & (y2 < y1)) { // simple invert
+			let temp = x2;
+			let x2 = x1;
+			let x1 = temp;
+			let temp = y2;
+			let y2 = y1;
+			let y1 = temp;
+		}
+		let dx = x2 - x1;
+		let dy = y2 - y1;
+		if (dx = 0) {
+			do Screen.__draw_ydiff(x1, y1, y2);
+			return;
+		}
+		if (dy = 0) {
+			do Screen.__draw_xdiff(y1, x1, x2);
+			return;
+		}
+		let abs_dx = Math.abs(dx);
+		let abs_dy = Math.abs(dy);
+		let sx = 1;
+		let sy = 1;
+		if (~(dx = 0)) {
+			let sx = dx / abs_dx;
+		}
+		if (~(dy = 0)) {
+			let sy = dy / abs_dy;
+		}
+		while (~((abs_a > abs_dx) & (abs_b > abs_dy))) {
+			do Screen.drawPixel(x1 + a, y1 + b);
+			let cond = (abs_a*abs_dy) < (abs_b*abs_dx);
+			if (cond) {
+				let a = a + sx;
+				let abs_a = Math.abs(a);
+			} else {
+				let b = b + sy;
+				let abs_b = Math.abs(b);
+			}
+		}
+		return;
     }
+
+	function void __draw_xdiff(int y, int x1, int x2) {
+		var int temp;
+		if (x1 > x2) {
+			let temp = x2;
+			let x2 = x1;
+			let x1 = temp;
+		}
+		while (x1 < x2) {
+			do Screen.drawPixel(x1, y);
+			let x1 = x1 + 1;
+		}
+		return;
+	}
+
+	function void __draw_ydiff(int x, int y1, int y2) {
+		var int temp;
+		if (y1 > y2) {
+			let temp = y2;
+			let y2 = y1;
+			let y1 = temp;
+		}
+		while (y1 < y2) {
+			do Screen.drawPixel(x, y1);
+			let y1 = y1 + 1;
+		}
+		return;
+	}
 
     /** Draws a filled rectangle where the top left corner
      *  is (x1, y1) and the bottom right corner is (x2, y2). */
     function void drawRectangle(int x1, int y1, int x2, int y2) {
+		while (y1 < y2) {
+			do Screen.__draw_xdiff(y1, x1, x2);
+			let y1 = y1 + 1;
+		}
+		return;
     }
 
     /** Draws a filled circle of radius r around (cx, cy). */
     function void drawCircle(int cx, int cy, int r) {
-    }
+		var int dx, dy, r_r;
+		let dy = -r;
+		let r_r = r*r;
+		while (~(dy > r)) {
+			let dx = Math.sqrt(r_r - (dy*dy));
+			do Screen.__draw_xdiff(cy+dy, cx-dx, cx+dx);
+			let dy = dy + 1;
+		}
+		return;
+	}
 }
